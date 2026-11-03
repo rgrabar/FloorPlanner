@@ -1,32 +1,47 @@
 import { useEffect, useState } from 'react'
 import { PlanCanvas } from './editor/PlanCanvas'
-import { startAutosave, useStore } from './store/store'
+import { startAutosave, useStore, type Tool } from './store/store'
 import { SidePanel } from './ui/SidePanel'
 import { Toolbar } from './ui/Toolbar'
 
 export function App() {
   const busy = useStore((s) => s.busy)
   const message = useStore((s) => s.message)
-  const { openFile, setTool, fit, showMessage } = useStore.getState()
+  const { openFile, setTool, fit, showMessage, undo, redo } = useStore.getState()
   const [dragging, setDragging] = useState(false)
 
   useEffect(() => {
     void startAutosave()
   }, [])
 
-  // Keyboard shortcuts for the tools.
+  // Keyboard shortcuts for undo/redo and the tools.
   useEffect(() => {
+    const TOOL_KEYS: Record<string, Tool> = {
+      v: 'select',
+      h: 'pan',
+      w: 'wall',
+      d: 'door',
+      n: 'window',
+      c: 'calibrate',
+      s: 'straighten',
+    }
     const onKey = (e: KeyboardEvent) => {
-      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLSelectElement || e.ctrlKey || e.metaKey) return
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLSelectElement) return
       const k = e.key.toLowerCase()
-      if (k === 'h') setTool('pan')
-      else if (k === 'c') setTool('calibrate')
-      else if (k === 's') setTool('straighten')
+      if (e.ctrlKey || e.metaKey) {
+        if (k === 'z' && !e.shiftKey) undo()
+        else if (k === 'y' || (k === 'z' && e.shiftKey)) redo()
+        else return
+        e.preventDefault()
+        return
+      }
+      if (e.altKey) return
+      if (TOOL_KEYS[k]) setTool(TOOL_KEYS[k])
       else if (k === 'f') fit()
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [setTool, fit])
+  }, [setTool, fit, undo, redo])
 
   return (
     <div

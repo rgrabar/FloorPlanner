@@ -1,7 +1,9 @@
 import { formatLength } from '../model/geometry'
 import { planBounds } from '../model/plan'
 import type { LayerRole, SourceFormat } from '../model/types'
+import { acceptSuggestions, clearSuggestions } from '../model/walls'
 import { useStore } from '../store/store'
+import { SelectionPanel } from './SelectionPanel'
 
 const FORMAT_NAMES: Record<SourceFormat, string> = {
   image: 'Image',
@@ -26,13 +28,13 @@ const ROLES: { role: LayerRole; label: string }[] = [
 export function SidePanel() {
   const plan = useStore((s) => s.plan)
   const file = useStore((s) => s.file)
-  const { choosePart, setLayerRole, setTool, setHighlightLayer } = useStore.getState()
+  const { choosePart, setLayerRole, setTool, setHighlightLayer, findWalls, edit, select } = useStore.getState()
   const src = plan.source
   const bounds = planBounds(plan)
-  const doors = plan.suggestedOpenings.filter((o) => o.kind === 'door').length
-  const windows = plan.suggestedOpenings.length - doors
+  const count = (kind: string, list: { kind: string }[]) => list.filter((o) => o.kind === kind).length
+  const hasWallLayers = plan.layers.some((l) => l.role === 'wall')
 
-  if (!src && !plan.background) {
+  if (!src && !plan.background && !plan.walls.length) {
     return (
       <aside className="side">
         <section>
@@ -41,6 +43,8 @@ export function SidePanel() {
             <li>Open or drop a floorplan.</li>
             <li>Straighten it if it's a photo taken at an angle.</li>
             <li>Calibrate the scale on a line of known length.</li>
+            <li>Trace the walls with the Wall tool, or accept the walls found in the file.</li>
+            <li>Add doors and windows.</li>
           </ol>
           <p className="muted">Test files for every format are in the <code>samples</code> folder.</p>
         </section>
@@ -50,6 +54,47 @@ export function SidePanel() {
 
   return (
     <aside className="side">
+      <SelectionPanel />
+
+      <section>
+        <h3>Walls</h3>
+        <ul className="counts">
+          <li>
+            {plan.walls.length} walls, {count('door', plan.openings)} doors, {count('window', plan.openings)} windows
+          </li>
+        </ul>
+        {plan.suggestedWalls.length > 0 && (
+          <>
+            <p className="muted">
+              Suggested (dashed): {plan.suggestedWalls.length} walls, {count('door', plan.suggestedOpenings)} doors,{' '}
+              {count('window', plan.suggestedOpenings)} windows. Click one to accept or delete it.
+            </p>
+            <div className="buttons">
+              <button
+                className="primary"
+                onClick={() => {
+                  edit((p) => acceptSuggestions(p))
+                  select(null)
+                }}
+              >
+                Accept all
+              </button>
+              <button onClick={() => edit(clearSuggestions)}>Clear suggestions</button>
+            </div>
+          </>
+        )}
+        {plan.lines.length > 0 && (
+          <div className="buttons">
+            <button onClick={findWalls} disabled={!hasWallLayers} title={hasWallLayers ? '' : 'Set at least one layer to Walls first'}>
+              Find walls in wall layers
+            </button>
+          </div>
+        )}
+        {!plan.walls.length && !plan.suggestedWalls.length && (
+          <p className="muted">Use the Wall tool (W) to trace walls: click along the middle of each wall.</p>
+        )}
+      </section>
+
       <section>
         <h3>Floorplan</h3>
         <p className="filename">{src?.fileName ?? 'Untitled'}</p>
@@ -89,16 +134,10 @@ export function SidePanel() {
         )}
       </section>
 
-      {plan.suggestedWalls.length + plan.rooms.length > 0 && (
+      {plan.rooms.length > 0 && (
         <section>
-          <h3>Found in the file</h3>
-          <ul className="counts">
-            <li>{plan.suggestedWalls.length} walls</li>
-            <li>{doors} doors</li>
-            <li>{windows} windows</li>
-            {plan.rooms.length > 0 && <li>{plan.rooms.length} rooms</li>}
-          </ul>
-          <p className="muted">Shown dashed. You'll accept or edit them in the wall editor (next milestone).</p>
+          <h3>Rooms</h3>
+          <p className="muted">{plan.rooms.length} rooms from the file.</p>
         </section>
       )}
 
@@ -106,8 +145,8 @@ export function SidePanel() {
         <section>
           <h3>Layers</h3>
           <p className="muted">
-            Point at a layer to see its lines (pink). Choose what each one contains; lines on wall layers become wall
-            suggestions later.
+            Point at a layer to see its lines (pink). Choose what each one contains, then use "Find walls in wall
+            layers". Walls need both of their outlines on a wall layer.
           </p>
           <div className="layers" onMouseLeave={() => setHighlightLayer(null)}>
             {plan.layers.map((l) => (

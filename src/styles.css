@@ -359,3 +359,72 @@ button.active {
   color: #b91c1c;
   font-size: 13px;
 }
+
+.tool-select canvas {
+  cursor: default;
+}
+
+.tool-wall canvas,
+.tool-door canvas,
+.tool-window canvas {
+  cursor: crosshair;
+}
+
+.tool-options {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  display: flex;
+  gap: 10px;
+  padding: 6px 10px;
+  border-radius: 8px;
+  background: white;
+  box-shadow: 0 2px 10px rgba(15, 23, 42, 0.15);
+}
+
+.tool-options + .empty,
+.hint + .tool-options {
+  top: 52px;
+}
+
+.number-field {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 13px;
+}
+
+.number-field input {
+  width: 64px;
+  padding: 3px 6px;
+  border: 1px solid #cbd5e1;
+  border-radius: 5px;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.number-field .unit {
+  color: #64748b;
+}
+
+.fields {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+
+.fields .number-field {
+  justify-content: space-between;
+}
+
+.fields .number-field span:first-child {
+  flex: 1;
+}
+
+.buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 6px;
+}

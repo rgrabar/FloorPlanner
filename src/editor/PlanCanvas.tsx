@@ -1,42 +1,70 @@
 import { useEffect, useReducer, useRef, useState } from 'react'
-import { dist, formatLength, wallCorners } from '../model/geometry'
+import { dist, projectOnWall } from '../model/geometry'
 import { planBounds } from '../model/plan'
-import type { LayerRole, Opening, Plan, Vec2, Wall } from '../model/types'
-import { useStore } from '../store/store'
+import type { Opening, Plan, Vec2, Wall } from '../model/types'
+import {
+  acceptSuggestions,
+  addOpening,
+  addWall,
+  deleteSelection,
+  moveWall,
+  moveWallEnd,
+  splitWall,
+  updateOpening,
+  wallLength,
+} from '../model/walls'
+import { useStore, type DrawDefaults } from '../store/store'
 import { CalibrateDialog } from './CalibrateDialog'
+import { drawScene, type View } from './draw'
+import { hitTest, snapPoint, wallAt, type Snap } from './snap'
+import { ToolOptions } from './ToolOptions'
 
-/** Screen position = plan position (cm) × zoom + offset. */
-interface View {
-  ox: number
-  oy: number
-  zoom: number // screen pixels per cm
-}
+type Drag =
+  | { kind: 'pan'; x: number; y: number }
+  | { kind: 'wall'; id: string; last: Vec2; started: boolean }
+  | { kind: 'end'; id: string; end: 'a' | 'b'; started: boolean; ignore: Set<string> }
+  | { kind: 'opening'; id: string; grab: number; started: boolean }
 
-const ROLE_COLORS: Record<LayerRole, string> = {
-  wall: '#1d4ed8',
-  door: '#ea580c',
-  window: '#0891b2',
-  other: '#475569',
-  hidden: 'transparent',
+/** Where a new door/window would go for the mouse at `p`, or null when not over a wall. */
+function openingPreview(p: Vec2, plan: Plan, zoom: number, kind: 'door' | 'window', d: DrawDefaults) {
+  const hit = wallAt(p, plan.walls, zoom)
+  if (!hit) return null
+  const len = wallLength(hit.wall)
+  const size = kind === 'door' ? { ...d.door, sill: 0 } : d.window
+  const width = Math.min(size.width, len)
+  const opening: Omit<Opening, 'id' | 'wallId'> = {
+    kind,
+    offset: Math.max(0, Math.min(len - width, hit.t - width / 2)),
+    width,
+    height: size.height,
+    sill: size.sill,
+  }
+  return { wall: hit.wall, opening }
 }
 
 export function PlanCanvas() {
   const plan = useStore((s) => s.plan)
   const tool = useStore((s) => s.tool)
+  const selection = useStore((s) => s.selection)
+  const defaults = useStore((s) => s.defaults)
   const fitToken = useStore((s) => s.fitToken)
   const highlight = useStore((s) => s.highlightLayer)
-  const { setTool, calibrate, straighten } = useStore.getState()
+  const { setTool, calibrate, straighten, select, edit, mutate, checkpoint } = useStore.getState()
 
   const wrapRef = useRef<HTMLDivElement>(null)
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const view = useRef<View>({ ox: 40, oy: 40, zoom: 1 })
-  const drag = useRef<{ x: number; y: number } | null>(null)
+  const drag = useRef<Drag | null>(null)
   const spaceDown = useRef(false)
   const [size, setSize] = useState({ w: 0, h: 0 })
   const [img, setImg] = useState<HTMLImageElement | null>(null)
   const [cursor, setCursor] = useState<Vec2 | null>(null)
+  const [snap, setSnap] = useState<Snap | null>(null)
   const [picks, setPicks] = useState<Vec2[]>([])
   const [measured, setMeasured] = useState<number | null>(null)
+  // Wall drawing: where the next wall starts, and where this chain of walls began.
+  const [wallStart, setWallStart] = useState<Vec2 | null>(null)
+  const chain = useRef<{ first: Vec2; count: number } | null>(null)
   const [, redraw] = useReducer((x: number) => x + 1, 0)
 
   // Keep the canvas the size of its container.
@@ -75,10 +103,17 @@ export function PlanCanvas() {
     redraw()
   }, [fitToken, size])
 
-  // A new tool starts with no clicked points.
+  const endChain = () => {
+    setWallStart(null)
+    chain.current = null
+  }
+
+  // A new tool starts fresh.
   useEffect(() => {
     setPicks([])
     setMeasured(null)
+    setSnap(null)
+    endChain()
   }, [tool])
 
   // Zoom with the mouse wheel, around the cursor. Needs a non-passive listener to stop page scrolling.
@@ -98,17 +133,26 @@ export function PlanCanvas() {
     return () => canvas.removeEventListener('wheel', onWheel)
   }, [])
 
-  // Space = temporary pan, Escape = cancel clicked points.
+  // Keys that act on the plan: Space pans, Escape cancels, Delete removes, Enter accepts.
   useEffect(() => {
     const down = (e: KeyboardEvent) => {
-      if (e.target instanceof HTMLInputElement) return
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLSelectElement) return
+      const s = useStore.getState()
       if (e.code === 'Space') {
         spaceDown.current = true
         e.preventDefault()
-      }
-      if (e.key === 'Escape') {
+      } else if (e.key === 'Escape') {
         setPicks([])
         setMeasured(null)
+        if (chain.current) endChain()
+        else s.select(null)
+      } else if ((e.key === 'Delete' || e.key === 'Backspace') && s.selection) {
+        s.edit((p) => deleteSelection(p, s.selection))
+        s.select(null)
+      } else if (e.key === 'Enter' && s.selection?.kind === 'suggestion') {
+        const id = s.selection.id
+        s.edit((p) => acceptSuggestions(p, [id]))
+        s.select({ kind: 'wall', id })
       }
     }
     const up = (e: KeyboardEvent) => {
@@ -122,6 +166,9 @@ export function PlanCanvas() {
     }
   }, [])
 
+  const placing = tool === 'door' || tool === 'window' ? tool : null
+  const preview = placing && cursor ? openingPreview(cursor, plan, view.current.zoom, placing, defaults) : null
+
   // Redraw after every render.
   useEffect(() => {
     const canvas = canvasRef.current!
@@ -130,11 +177,17 @@ export function PlanCanvas() {
     canvas.height = Math.round(size.h * dpr)
     const ctx = canvas.getContext('2d')!
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
-    drawPlan(ctx, size, view.current, plan, img, highlight)
-    drawPicks(ctx, view.current, tool, picks, cursor)
+    drawScene(ctx, size, view.current, plan, img, {
+      selection,
+      highlight,
+      newWall: tool === 'wall' && wallStart && snap ? { a: wallStart, b: snap.p, thickness: defaults.wallThickness } : undefined,
+      newOpening: preview ?? undefined,
+      snap: tool === 'wall' ? snap : null,
+      picks: { tool, points: picks, cursor },
+    })
   })
 
-  const toPlan = (e: React.PointerEvent): Vec2 => {
+  const toPlan = (e: React.PointerEvent | React.MouseEvent): Vec2 => {
     const r = canvasRef.current!.getBoundingClientRect()
     const v = view.current
     let p = { x: (e.clientX - r.left - v.ox) / v.zoom, y: (e.clientY - r.top - v.oy) / v.zoom }
@@ -146,15 +199,66 @@ export function PlanCanvas() {
     return p
   }
 
+  const startPan = (e: React.PointerEvent) => {
+    drag.current = { kind: 'pan', x: e.clientX, y: e.clientY }
+    canvasRef.current!.setPointerCapture(e.pointerId)
+  }
+
   const onPointerDown = (e: React.PointerEvent) => {
-    if (e.button === 1 || e.button === 2 || tool === 'pan' || spaceDown.current) {
-      drag.current = { x: e.clientX, y: e.clientY }
-      canvasRef.current!.setPointerCapture(e.pointerId)
-      return
-    }
+    if (e.button === 1 || e.button === 2 || tool === 'pan' || spaceDown.current) return startPan(e)
     if (e.button !== 0) return
     const p = toPlan(e)
-    if (tool === 'calibrate' && picks.length < 2) {
+    const zoom = view.current.zoom
+
+    if (tool === 'select') {
+      const hit = hitTest(p, plan, zoom, selection)
+      if (!hit) {
+        select(null)
+        return startPan(e)
+      }
+      if (hit.kind === 'suggestion') return select({ kind: 'suggestion', id: hit.id })
+      canvasRef.current!.setPointerCapture(e.pointerId)
+      if (hit.kind === 'end') {
+        // Walls joined at this end move along, so they mustn't be snap targets.
+        const at = plan.walls.find((w) => w.id === hit.id)![hit.end]
+        const ignore = new Set(plan.walls.filter((w) => dist(w.a, at) < 0.5 || dist(w.b, at) < 0.5).map((w) => w.id))
+        drag.current = { kind: 'end', id: hit.id, end: hit.end, started: false, ignore }
+      } else if (hit.kind === 'wall') {
+        select({ kind: 'wall', id: hit.id })
+        drag.current = { kind: 'wall', id: hit.id, last: p, started: false }
+      } else {
+        select({ kind: 'opening', id: hit.id })
+        const o = plan.openings.find((x) => x.id === hit.id)!
+        drag.current = { kind: 'opening', id: hit.id, grab: hit.t - o.offset, started: false }
+      }
+    } else if (tool === 'wall') {
+      const s = snapPoint(p, plan, zoom, wallStart, e.altKey)
+      if (!wallStart) {
+        setWallStart(s.p)
+        chain.current = { first: s.p, count: 0 }
+        return
+      }
+      if (dist(s.p, wallStart) < 1) return
+      const start = wallStart
+      edit((pl) => addWall(pl, start, s.p, defaults.wallThickness).plan)
+      const c = chain.current!
+      c.count++
+      // Clicking back on the first point closes the room.
+      if (c.count >= 2 && dist(s.p, c.first) < 0.5) endChain()
+      else setWallStart(s.p)
+    } else if (placing) {
+      // Use the click position itself, not the last hover preview.
+      const target = openingPreview(p, plan, zoom, placing, defaults)
+      if (!target) return
+      const { wall, opening } = target
+      let id = ''
+      edit((pl) => {
+        const r = addOpening(pl, { ...opening, wallId: wall.id })
+        id = r.id
+        return r.plan
+      })
+      select({ kind: 'opening', id })
+    } else if (tool === 'calibrate' && picks.length < 2) {
       const next = [...picks, p]
       setPicks(next)
       if (next.length === 2) setMeasured(dist(next[0], next[1]))
@@ -172,11 +276,59 @@ export function PlanCanvas() {
   }
 
   const onPointerMove = (e: React.PointerEvent) => {
-    setCursor(toPlan(e))
-    if (drag.current) {
-      view.current.ox += e.clientX - drag.current.x
-      view.current.oy += e.clientY - drag.current.y
-      drag.current = { x: e.clientX, y: e.clientY }
+    const p = toPlan(e)
+    setCursor(p)
+    const d = drag.current
+    const zoom = view.current.zoom
+    if (!d) {
+      if (tool === 'wall') setSnap(snapPoint(p, plan, zoom, wallStart, e.altKey))
+      return
+    }
+    if (d.kind === 'pan') {
+      view.current.ox += e.clientX - d.x
+      view.current.oy += e.clientY - d.y
+      drag.current = { ...d, x: e.clientX, y: e.clientY }
+      return
+    }
+    // The first real move of a drag saves one undo step for the whole drag.
+    if (!d.started) {
+      checkpoint()
+      d.started = true
+    }
+    if (d.kind === 'end') {
+      const wall = plan.walls.find((w) => w.id === d.id)
+      if (!wall) return
+      const others = { ...plan, walls: plan.walls.filter((w) => !d.ignore.has(w.id)) }
+      const s = snapPoint(p, others, zoom, d.end === 'a' ? wall.b : wall.a, e.altKey)
+      setSnap(s)
+      mutate((pl) => moveWallEnd(pl, d.id, d.end, s.p))
+    } else if (d.kind === 'wall') {
+      const delta = { x: p.x - d.last.x, y: p.y - d.last.y }
+      d.last = p
+      mutate((pl) => moveWall(pl, d.id, delta))
+    } else {
+      const o = plan.openings.find((x) => x.id === d.id)
+      const wall: Wall | undefined = o && plan.walls.find((w) => w.id === o.wallId)
+      if (!wall) return
+      const { t } = projectOnWall(p, wall)
+      mutate((pl) => updateOpening(pl, d.id, { offset: t - d.grab }))
+    }
+  }
+
+  const onPointerUp = () => {
+    drag.current = null
+    if (tool !== 'wall') setSnap(null)
+  }
+
+  const onDoubleClick = (e: React.MouseEvent) => {
+    if (tool === 'wall') return endChain()
+    if (tool !== 'select') return
+    // Double-clicking a wall splits it there.
+    const p = toPlan(e)
+    const hit = hitTest(p, plan, view.current.zoom, null)
+    if (hit?.kind === 'wall') {
+      edit((pl) => splitWall(pl, hit.id, hit.t))
+      select(null)
     }
   }
 
@@ -184,39 +336,49 @@ export function PlanCanvas() {
     const k = realCm / measured!
     view.current.zoom /= k // keep the picture where it is on screen
     calibrate(k)
-    setTool('pan')
+    setTool('select')
   }
 
-  const hint =
-    tool === 'calibrate'
-      ? picks.length === 0
+  const hint = (() => {
+    if (tool === 'calibrate') {
+      return picks.length === 0
         ? 'Click the start of a line whose real length you know (e.g. a dimension line). Hold Shift for a straight line.'
         : 'Click the end of the line.'
-      : tool === 'straighten'
-        ? `Click the 4 corners of the plan on the photo (${picks.length}/4). Esc to start over.`
-        : null
+    }
+    if (tool === 'straighten') return `Click the 4 corners of the plan on the photo (${picks.length}/4). Esc to start over.`
+    if (tool === 'wall') {
+      return wallStart
+        ? 'Click to end this wall and start the next. Click the first point to close the room. Double-click or Esc to stop.'
+        : 'Click where a wall starts (the middle of the wall). It snaps to wall ends, walls and 45°/90°. Hold Alt to not snap.'
+    }
+    if (placing) {
+      return plan.walls.length
+        ? `Click on a wall to place a ${placing}.`
+        : `Draw walls (or accept the suggested ones) first, then place ${placing}s on them.`
+    }
+    return null
+  })()
 
-  const empty = !plan.source && !plan.background
+  const empty = !plan.source && !plan.background && !plan.walls.length
 
   return (
-    <div
-      ref={wrapRef}
-      className={`canvas-wrap tool-${tool}`}
-      onContextMenu={(e) => e.preventDefault()}
-    >
+    <div ref={wrapRef} className={`canvas-wrap tool-${tool}`} onContextMenu={(e) => e.preventDefault()}>
       <canvas
         ref={canvasRef}
         style={{ width: size.w, height: size.h }}
         onPointerDown={onPointerDown}
         onPointerMove={onPointerMove}
-        onPointerUp={() => (drag.current = null)}
+        onPointerUp={onPointerUp}
         onPointerLeave={() => setCursor(null)}
+        onDoubleClick={onDoubleClick}
       />
       {hint && <div className="hint">{hint}</div>}
+      <ToolOptions />
       {empty && (
         <div className="empty">
           <h2>Drop a floorplan here</h2>
           <p>or click Open. Pictures, PDF, SVG, DXF, IFC and Sweet Home 3D files all work.</p>
+          <p>You can also start drawing walls right away with the Wall tool.</p>
         </div>
       )}
       {cursor && !empty && (
@@ -237,168 +399,4 @@ export function PlanCanvas() {
       )}
     </div>
   )
-}
-
-// ---------- drawing ----------
-
-function drawPlan(
-  ctx: CanvasRenderingContext2D,
-  size: { w: number; h: number },
-  v: View,
-  plan: Plan,
-  img: HTMLImageElement | null,
-  highlight: string | null,
-) {
-  const S = (p: Vec2) => ({ x: p.x * v.zoom + v.ox, y: p.y * v.zoom + v.oy })
-  ctx.fillStyle = '#eef0f3'
-  ctx.fillRect(0, 0, size.w, size.h)
-
-  // Grid: 1 m squares, or 10 m when zoomed far out.
-  let step = 100
-  while (step * v.zoom < 24) step *= 10
-  ctx.strokeStyle = '#dde1e7'
-  ctx.lineWidth = 1
-  ctx.beginPath()
-  const x0 = Math.floor(-v.ox / v.zoom / step) * step
-  for (let x = x0; x * v.zoom + v.ox < size.w; x += step) {
-    const sx = Math.round(x * v.zoom + v.ox) + 0.5
-    ctx.moveTo(sx, 0)
-    ctx.lineTo(sx, size.h)
-  }
-  const y0 = Math.floor(-v.oy / v.zoom / step) * step
-  for (let y = y0; y * v.zoom + v.oy < size.h; y += step) {
-    const sy = Math.round(y * v.zoom + v.oy) + 0.5
-    ctx.moveTo(0, sy)
-    ctx.lineTo(size.w, sy)
-  }
-  ctx.stroke()
-
-  // Lines on "other" layers are already visible in the background picture, so with a picture
-  // only lines I gave a role (or the layer I'm pointing at) are drawn on top.
-  const bg = plan.background
-  const roleOf = new Map(plan.layers.map((l) => [l.name, l.role]))
-  const drawnRoles: LayerRole[] = bg ? ['window', 'door', 'wall'] : ['other', 'window', 'door', 'wall']
-  const anyOnTop = highlight !== null || plan.layers.some((l) => l.role !== 'other' && l.role !== 'hidden')
-  if (bg && img) {
-    const tl = S({ x: bg.x, y: bg.y })
-    ctx.imageSmoothingQuality = 'high'
-    ctx.globalAlpha = anyOnTop ? 0.4 : 1 // let the coloured lines stand out
-    ctx.drawImage(img, tl.x, tl.y, bg.widthPx * bg.cmPerPx * v.zoom, bg.heightPx * bg.cmPerPx * v.zoom)
-    ctx.globalAlpha = 1
-  }
-
-  for (const room of plan.rooms) {
-    ctx.beginPath()
-    room.points.forEach((p, i) => (i ? ctx.lineTo(S(p).x, S(p).y) : ctx.moveTo(S(p).x, S(p).y)))
-    ctx.closePath()
-    ctx.fillStyle = 'rgba(250, 204, 21, 0.12)'
-    ctx.fill()
-    if (room.name) {
-      const c = room.points.reduce((s, p) => ({ x: s.x + p.x / room.points.length, y: s.y + p.y / room.points.length }), { x: 0, y: 0 })
-      ctx.fillStyle = '#854d0e'
-      ctx.font = '12px system-ui, sans-serif'
-      ctx.textAlign = 'center'
-      ctx.fillText(room.name, S(c).x, S(c).y)
-    }
-  }
-
-  // Vector lines, one batch per layer role, then the highlighted layer on top.
-  const strokeLines = (keep: (layer: string) => boolean, color: string, width: number) => {
-    ctx.beginPath()
-    for (const l of plan.lines) {
-      if (!keep(l.layer)) continue
-      const a = S(l.a)
-      const b = S(l.b)
-      ctx.moveTo(a.x, a.y)
-      ctx.lineTo(b.x, b.y)
-    }
-    ctx.strokeStyle = color
-    ctx.lineWidth = width
-    ctx.stroke()
-  }
-  for (const role of drawnRoles) {
-    strokeLines((layer) => roleOf.get(layer) === role, ROLE_COLORS[role], role === 'wall' ? 1.6 : 1)
-  }
-  if (highlight) strokeLines((layer) => layer === highlight, '#db2777', 2)
-
-  drawWalls(ctx, S, plan.suggestedWalls, plan.suggestedOpenings, true, v.zoom)
-  drawWalls(ctx, S, plan.walls, plan.openings, false, v.zoom)
-  drawScaleBar(ctx, size, v.zoom)
-}
-
-function drawWalls(ctx: CanvasRenderingContext2D, S: (p: Vec2) => Vec2, walls: Wall[], openings: Opening[], suggested: boolean, zoom: number) {
-  ctx.setLineDash(suggested ? [5, 4] : [])
-  for (const w of walls) {
-    const c = wallCorners(w).map(S)
-    ctx.beginPath()
-    c.forEach((p, i) => (i ? ctx.lineTo(p.x, p.y) : ctx.moveTo(p.x, p.y)))
-    ctx.closePath()
-    ctx.fillStyle = suggested ? 'rgba(37, 99, 235, 0.22)' : '#334155'
-    ctx.fill()
-    ctx.strokeStyle = suggested ? '#2563eb' : '#0f172a'
-    ctx.lineWidth = 1
-    ctx.stroke()
-  }
-  ctx.setLineDash([])
-  const byId = new Map(walls.map((w) => [w.id, w]))
-  for (const o of openings) {
-    const w = byId.get(o.wallId)
-    if (!w) continue
-    const len = dist(w.a, w.b) || 1
-    const at = (t: number) => S({ x: w.a.x + ((w.b.x - w.a.x) * t) / len, y: w.a.y + ((w.b.y - w.a.y) * t) / len })
-    const a = at(o.offset)
-    const b = at(o.offset + o.width)
-    ctx.beginPath()
-    ctx.moveTo(a.x, a.y)
-    ctx.lineTo(b.x, b.y)
-    ctx.strokeStyle = ROLE_COLORS[o.kind]
-    ctx.lineWidth = Math.max(3, w.thickness * zoom * 0.8)
-    ctx.stroke()
-  }
-}
-
-function drawScaleBar(ctx: CanvasRenderingContext2D, size: { w: number; h: number }, zoom: number) {
-  const lengths = [1, 2, 5, 10, 20, 50, 100, 200, 500, 1000, 2000, 5000, 10000, 20000, 50000]
-  const cm = lengths.find((l) => l * zoom >= 80) ?? lengths[lengths.length - 1]
-  const px = cm * zoom
-  const x = 16
-  const y = size.h - 20
-  ctx.fillStyle = 'rgba(255,255,255,0.85)'
-  ctx.fillRect(x - 6, y - 22, px + 12, 30)
-  ctx.strokeStyle = '#0f172a'
-  ctx.lineWidth = 2
-  ctx.beginPath()
-  ctx.moveTo(x, y - 5)
-  ctx.lineTo(x, y)
-  ctx.lineTo(x + px, y)
-  ctx.lineTo(x + px, y - 5)
-  ctx.stroke()
-  ctx.fillStyle = '#0f172a'
-  ctx.font = '12px system-ui, sans-serif'
-  ctx.textAlign = 'center'
-  ctx.fillText(cm >= 100 ? `${cm / 100} m` : `${cm} cm`, x + px / 2, y - 8)
-}
-
-function drawPicks(ctx: CanvasRenderingContext2D, v: View, tool: string, picks: Vec2[], cursor: Vec2 | null) {
-  if (!picks.length) return
-  const S = (p: Vec2) => ({ x: p.x * v.zoom + v.ox, y: p.y * v.zoom + v.oy })
-  const pts = cursor && (tool === 'straighten' || picks.length < 2) ? [...picks, cursor] : picks
-  ctx.strokeStyle = '#dc2626'
-  ctx.fillStyle = '#dc2626'
-  ctx.lineWidth = 2
-  ctx.beginPath()
-  pts.map(S).forEach((p, i) => (i ? ctx.lineTo(p.x, p.y) : ctx.moveTo(p.x, p.y)))
-  if (tool === 'straighten' && pts.length === 4) ctx.closePath()
-  ctx.stroke()
-  for (const p of picks.map(S)) {
-    ctx.beginPath()
-    ctx.arc(p.x, p.y, 4, 0, Math.PI * 2)
-    ctx.fill()
-  }
-  if (tool === 'calibrate' && pts.length === 2) {
-    const m = S({ x: (pts[0].x + pts[1].x) / 2, y: (pts[0].y + pts[1].y) / 2 })
-    ctx.font = 'bold 12px system-ui, sans-serif'
-    ctx.textAlign = 'center'
-    ctx.fillText(formatLength(dist(pts[0], pts[1])), m.x, m.y - 8)
-  }
 }

@@ -5,19 +5,34 @@ import { straightenImage } from '../import/perspective'
 import type { ImportResult } from '../import/types'
 import { emptyPlan, layersFromLines, scalePlan } from '../model/plan'
 import type { LayerRole, Plan, Vec2 } from '../model/types'
+import type { Selection } from '../model/walls'
+import { wallsFromLines } from '../model/wallsFromLines'
 import { loadAutosave, readProject, saveAutosave } from '../project/saveLoad'
 
-export type Tool = 'pan' | 'calibrate' | 'straighten'
+export type Tool = 'select' | 'pan' | 'wall' | 'door' | 'window' | 'calibrate' | 'straighten'
 
 export interface Message {
   kind: 'info' | 'error'
   text: string
 }
 
+/** Sizes used for new walls, doors and windows (cm). */
+export interface DrawDefaults {
+  wallThickness: number
+  door: { width: number; height: number }
+  window: { width: number; height: number; sill: number }
+}
+
+const MAX_UNDO = 100
+
 interface State {
   plan: Plan
   file: File | null // the imported file, kept to switch pages/levels
   tool: Tool
+  selection: Selection
+  defaults: DrawDefaults
+  past: Plan[]
+  future: Plan[]
   busy: string | null
   message: Message | null
   fitToken: number // bumped when the view should zoom to fit the plan
@@ -28,15 +43,25 @@ interface State {
   calibrate(factor: number): void
   straighten(cornersPx: Vec2[]): Promise<void>
   setLayerRole(name: string, role: LayerRole): void
+  findWalls(): void
   setHighlightLayer(name: string | null): void
   setTool(tool: Tool): void
+  select(selection: Selection): void
+  setDefaults(patch: Partial<DrawDefaults>): void
+  /** An undoable change to the plan. */
+  edit(change: (plan: Plan) => Plan): void
+  /** Saves an undo step now, for changes made bit by bit with `mutate` (dragging). */
+  checkpoint(): void
+  mutate(change: (plan: Plan) => Plan): void
+  undo(): void
+  redo(): void
   newPlan(): void
   fit(): void
   showMessage(message: Message | null): void
 }
 
 function planFromImport(r: ImportResult, fileName: string): Plan {
-  return {
+  const plan: Plan = {
     ...emptyPlan(),
     source: { fileName, format: r.format, parts: r.parts, note: r.note },
     scaleKnown: r.scaleKnown,
@@ -47,6 +72,14 @@ function planFromImport(r: ImportResult, fileName: string): Plan {
     suggestedOpenings: r.suggestedOpenings,
     rooms: r.rooms,
   }
+  // Vector files with recognisable wall layers get wall suggestions straight away.
+  if (!plan.suggestedWalls.length && plan.layers.some((l) => l.role === 'wall')) return withFoundWalls(plan)
+  return plan
+}
+
+function withFoundWalls(plan: Plan): Plan {
+  const found = wallsFromLines(plan.lines, new Map(plan.layers.map((l) => [l.name, l.role])))
+  return { ...plan, suggestedWalls: found.walls, suggestedOpenings: found.openings }
 }
 
 const errorText = (e: unknown) => (e instanceof Error ? e.message : String(e))
@@ -70,10 +103,23 @@ export const useStore = create<State>()((set, get) => {
     return plan.walls.length === 0 || window.confirm('Open a new floorplan? The walls you traced will be replaced.')
   }
 
+  /** Replaces the whole plan (new file, new page): starts a fresh undo history. */
+  function replacePlan(plan: Plan, extra: Partial<State> = {}) {
+    set((s) => ({ plan, past: [], future: [], selection: null, tool: 'select', fitToken: s.fitToken + 1, ...extra }))
+  }
+
   return {
     plan: emptyPlan(),
     file: null,
-    tool: 'pan',
+    tool: 'select',
+    selection: null,
+    defaults: {
+      wallThickness: 10,
+      door: { width: 90, height: 210 },
+      window: { width: 120, height: 120, sill: 90 },
+    },
+    past: [],
+    future: [],
     busy: null,
     message: null,
     fitToken: 0,
@@ -82,15 +128,12 @@ export const useStore = create<State>()((set, get) => {
     async openFile(file) {
       if (!confirmReplace()) return
       if (file.name.toLowerCase().endsWith('.json')) {
-        await run(`Opening ${file.name}…`, async () => {
-          const plan = await readProject(file)
-          set((s) => ({ plan, file: null, tool: 'pan', fitToken: s.fitToken + 1 }))
-        })
+        await run(`Opening ${file.name}…`, async () => replacePlan(await readProject(file), { file: null }))
         return
       }
       await run(`Reading ${file.name}…`, async () => {
         const result = await importFile(file)
-        set((s) => ({ plan: planFromImport(result, file.name), file, tool: 'pan', fitToken: s.fitToken + 1 }))
+        replacePlan(planFromImport(result, file.name), { file })
       })
     },
 
@@ -99,13 +142,12 @@ export const useStore = create<State>()((set, get) => {
       if (!file || !plan.source?.parts || !confirmReplace()) return
       const label = plan.source.parts.names[index]
       await run(`Loading ${label}…`, async () => {
-        const result = await importFile(file, { part: index })
-        set((s) => ({ plan: planFromImport(result, file.name), fitToken: s.fitToken + 1 }))
+        replacePlan(planFromImport(await importFile(file, { part: index }), file.name))
       })
     },
 
     calibrate(factor) {
-      set((s) => ({ plan: { ...scalePlan(s.plan, factor), source: s.plan.source && { ...s.plan.source, note: undefined } } }))
+      get().edit((p) => ({ ...scalePlan(p, factor), source: p.source && { ...p.source, note: undefined } }))
     },
 
     async straighten(cornersPx) {
@@ -114,21 +156,33 @@ export const useStore = create<State>()((set, get) => {
       await run('Straightening the photo…', async () => {
         const src = await straightenImage(bg.src, cornersPx)
         const background = await makeBackground(src, bg.cmPerPx)
-        set((s) => ({
-          plan: {
-            ...s.plan,
-            background: { ...background, x: bg.x, y: bg.y },
-            scaleKnown: false,
-            source: s.plan.source && { ...s.plan.source, format: 'photo', note: 'Photo straightened. Now calibrate the scale.' },
-          },
-          tool: 'pan',
-          fitToken: s.fitToken + 1,
+        get().edit((p) => ({
+          ...p,
+          background: { ...background, x: bg.x, y: bg.y },
+          scaleKnown: false,
+          source: p.source && { ...p.source, format: 'photo', note: 'Photo straightened. Now calibrate the scale.' },
         }))
+        set((s) => ({ tool: 'select', fitToken: s.fitToken + 1 }))
       })
     },
 
     setLayerRole(name, role) {
-      set((s) => ({ plan: { ...s.plan, layers: s.plan.layers.map((l) => (l.name === name ? { ...l, role } : l)) } }))
+      get().edit((p) => ({ ...p, layers: p.layers.map((l) => (l.name === name ? { ...l, role } : l)) }))
+    },
+
+    findWalls() {
+      const before = get().plan.suggestedWalls.length
+      get().edit(withFoundWalls)
+      const found = get().plan.suggestedWalls.length
+      set({
+        selection: null,
+        message: {
+          kind: 'info',
+          text: found
+            ? `Found ${found} walls and ${get().plan.suggestedOpenings.length} doors/windows. They're shown dashed: accept them or fix them.`
+            : `No walls found${before ? ' (the old suggestions were cleared)' : ''}. Check which layers are set to Walls: walls need both outlines on them.`,
+        },
+      })
     },
 
     setHighlightLayer(name) {
@@ -139,9 +193,48 @@ export const useStore = create<State>()((set, get) => {
       set({ tool })
     },
 
+    select(selection) {
+      set({ selection })
+    },
+
+    setDefaults(patch) {
+      set((s) => ({ defaults: { ...s.defaults, ...patch } }))
+    },
+
+    edit(change) {
+      set((s) => {
+        const plan = change(s.plan)
+        return plan === s.plan ? {} : { plan, past: [...s.past.slice(-MAX_UNDO + 1), s.plan], future: [] }
+      })
+    },
+
+    checkpoint() {
+      set((s) => ({ past: [...s.past.slice(-MAX_UNDO + 1), s.plan], future: [] }))
+    },
+
+    mutate(change) {
+      set((s) => ({ plan: change(s.plan) }))
+    },
+
+    undo() {
+      set((s) => {
+        const prev = s.past[s.past.length - 1]
+        if (!prev) return {}
+        return { plan: prev, past: s.past.slice(0, -1), future: [s.plan, ...s.future], selection: null }
+      })
+    },
+
+    redo() {
+      set((s) => {
+        const next = s.future[0]
+        if (!next) return {}
+        return { plan: next, past: [...s.past, s.plan], future: s.future.slice(1), selection: null }
+      })
+    },
+
     newPlan() {
       if (!confirmReplace()) return
-      set((s) => ({ plan: emptyPlan(), file: null, tool: 'pan', message: null, fitToken: s.fitToken + 1 }))
+      replacePlan(emptyPlan(), { file: null, message: null })
     },
 
     fit() {

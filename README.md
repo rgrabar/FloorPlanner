@@ -3,7 +3,7 @@
 Load a floorplan, turn it into a 3D model and place accurately modelled IKEA furniture in it.
 See [PROMPT.md](PROMPT.md) for the full plan. Built one milestone at a time.
 
-**Status:** Milestone 1 (import any floorplan, set its scale) is done.
+**Status:** Milestones 1 (import any floorplan, set its scale) and 2 (walls, doors, windows) are done.
 
 ## Run it
 
@@ -23,7 +23,20 @@ Then open http://localhost:5173.
    It's straightened with its real proportions.
 3. **Calibrate** (C): click both ends of a line whose real length you know (a dimension line
    is ideal; hold Shift to keep it straight), then type its length (`350`, `350 cm`, `3.5 m`, `3500 mm`).
-4. Pan by dragging (or hold Space / use the right mouse button in other tools). The mouse wheel zooms. **Fit** (F) shows everything.
+4. **Walls from the file:** for vector files, set the layer that holds the walls to *Walls* (point at a layer to
+   see its lines) and click **Find walls in wall layers**. Walls are found from their two outlines, and gaps
+   become doors or windows. They show dashed: click one to accept or delete it, or click **Accept all**.
+   IFC and Sweet Home 3D files come with their walls already.
+5. **Wall** (W): click along the middle of a wall, point by point. It snaps to wall ends, onto walls and to
+   45°/90° (hold Alt to not snap). Click the first point to close a room; double-click or Esc to stop.
+   The thickness for new walls is set top left.
+6. **Door** (D) / **Window** (N): click on a wall. Sizes for new ones are set top left.
+7. **Select** (V): click a wall, door or window to edit its sizes in the side panel. Drag a wall to move it,
+   its square ends to reshape it (joined walls follow), and doors/windows to slide them. Double-click a wall to
+   split it. Delete removes the selection.
+8. **Undo/Redo:** Ctrl+Z and Ctrl+Y (or Ctrl+Shift+Z).
+
+Drag empty space (or hold Space, or use the right mouse button) to pan. The mouse wheel zooms. **Fit** (F) shows everything.
 
 Your work is saved automatically in the browser. **Save project** downloads a
 `.floorplan.json` file, which you can open again with Open.
@@ -63,7 +76,8 @@ Browsers can't read DWG, so convert it to DXF first:
 Regenerate them with `npm run samples`. There is no HEIC sample, because Pillow can't write HEIC.
 
 `samples/apartment-rijeka.pdf` is a real architect's plan (1:100, but the PDF is shrunk about 3.5 %).
-On it, the "Black lines 0.25 mm" layer holds the walls. Calibrate on the 1106 cm dimension line.
+On it, set "Black lines 0.25 mm" to Walls and "Blue lines 0.10 mm" to Windows, then Find walls.
+Calibrate on the 1106 cm dimension line.
 
 ## Folders
 
