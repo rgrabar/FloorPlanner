@@ -1,0 +1,39 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1060 860" width="1060" height="860">
+  <rect width="1060" height="860" fill="white"/>
+  <g transform="translate(80 100)">
+  <g id="walls">
+    <rect x="-10.0" y="-10.0" width="200.0" height="20.0" fill="#222"/>
+    <rect x="310.0" y="-10.0" width="310.0" height="20.0" fill="#222"/>
+    <rect x="780.0" y="-10.0" width="130.0" height="20.0" fill="#222"/>
+    <rect x="890.0" y="-10.0" width="20.0" height="300.0" fill="#222"/>
+    <rect x="890.0" y="410.0" width="20.0" height="300.0" fill="#222"/>
+    <rect x="745.0" y="690.0" width="165.0" height="20.0" fill="#222"/>
+    <rect x="-10.0" y="690.0" width="665.0" height="20.0" fill="#222"/>
+    <rect x="-10.0" y="590.0" width="20.0" height="120.0" fill="#222"/>
+    <rect x="-10.0" y="-10.0" width="20.0" height="520.0" fill="#222"/>
+    <rect x="495.0" y="0.0" width="10.0" height="160.0" fill="#222"/>
+    <rect x="495.0" y="240.0" width="10.0" height="460.0" fill="#222"/>
+    <rect x="0.0" y="395.0" width="210.0" height="10.0" fill="#222"/>
+    <rect x="290.0" y="395.0" width="210.0" height="10.0" fill="#222"/>
+  </g>
+  <g id="doors">
+    <path d="M500.0,160.0 L420.0,160.0 A80,80 0 0 0 500.0,240.0" fill="none" stroke="#c60" stroke-width="2"/>
+    <path d="M210.0,400.0 L210.0,480.0 A80,80 0 0 0 290.0,400.0" fill="none" stroke="#c60" stroke-width="2"/>
+    <path d="M745.0,700.0 L745.0,610.0 A90,90 0 0 0 655.0,700.0" fill="none" stroke="#c60" stroke-width="2"/>
+  </g>
+  <g id="windows">
+    <line x1="190.0" y1="-10.0" x2="310.0" y2="-10.0" stroke="#06c" stroke-width="2"/>
+    <line x1="190.0" y1="10.0" x2="310.0" y2="10.0" stroke="#06c" stroke-width="2"/>
+    <line x1="620.0" y1="-10.0" x2="780.0" y2="-10.0" stroke="#06c" stroke-width="2"/>
+    <line x1="620.0" y1="10.0" x2="780.0" y2="10.0" stroke="#06c" stroke-width="2"/>
+    <line x1="910.0" y1="290.0" x2="910.0" y2="410.0" stroke="#06c" stroke-width="2"/>
+    <line x1="890.0" y1="290.0" x2="890.0" y2="410.0" stroke="#06c" stroke-width="2"/>
+    <line x1="-10.0" y1="590.0" x2="-10.0" y2="510.0" stroke="#06c" stroke-width="2"/>
+    <line x1="10.0" y1="590.0" x2="10.0" y2="510.0" stroke="#06c" stroke-width="2"/>
+  </g>
+  <g id="dimensions">
+    <line x1="-10" y1="-50" x2="910" y2="-50" stroke="black" stroke-width="2"/>
+    <text x="450" y="-58" font-size="22" text-anchor="middle" font-family="sans-serif">920 cm</text>
+  </g>
+  </g>
+</svg>
