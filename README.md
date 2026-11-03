@@ -34,7 +34,7 @@ Your work is saved automatically in the browser. **Save project** downloads a
 |---|---|
 | PNG, JPG, WebP, GIF, BMP, TIFF, HEIC | Shown as the background. Calibrate the scale. Multi-page TIFFs get a page picker |
 | Photo of a paper plan | Use Straighten photo, then Calibrate |
-| PDF | Page picker. Vector lines are extracted. The scale is first assumed to be 1:100 |
+| PDF | Page picker. Vector lines are extracted, with one layer per colour and pen width. The scale is first assumed to be 1:100 |
 | SVG | Lines are extracted per group (`<g id="walls">` etc.) |
 | DXF | Layers listed with a type each. Units read from the file |
 | DWG | Convert to DXF first (see below) |
@@ -61,6 +61,9 @@ Browsers can't read DWG, so convert it to DXF first:
 
 `samples/` has the same small apartment (9 × 7 m, 920 cm outside) in every format.
 Regenerate them with `npm run samples`. There is no HEIC sample, because Pillow can't write HEIC.
+
+`samples/apartment-rijeka.pdf` is a real architect's plan (1:100, but the PDF is shrunk about 3.5 %).
+On it, the "Black lines 0.25 mm" layer holds the walls. Calibrate on the 1106 cm dimension line.
 
 ## Folders
 

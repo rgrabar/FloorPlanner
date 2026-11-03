@@ -17,13 +17,13 @@ export function emptyPlan(): Plan {
   }
 }
 
-/** Guesses what a layer contains from its name (English, Dutch, German, French). */
+/** Guesses what a layer contains from its name (English, Dutch, German, French, Croatian). */
 function guessRole(name: string): LayerRole {
   const n = name.toLowerCase()
-  if (/wall|wand|muur|mur|mauer/.test(n)) return 'wall'
-  if (/door|deur|tür|tuer|porte/.test(n)) return 'door'
-  if (/window|raam|fenster|fen[eê]tre|glaz/.test(n)) return 'window'
-  if (/text|dim|bema|hatch|furn|meubel|möbel/.test(n)) return 'hidden'
+  if (/wall|wand|muur|mur|mauer|zid/.test(n)) return 'wall'
+  if (/door|deur|tür|tuer|porte|vrata/.test(n)) return 'door'
+  if (/window|raam|fenster|fen[eê]tre|glaz|prozor/.test(n)) return 'window'
+  if (/text|dim|bema|kota|hatch|furn|meubel|möbel|namje/.test(n)) return 'hidden'
   return 'other'
 }
 

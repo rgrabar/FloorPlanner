@@ -21,12 +21,14 @@ interface State {
   busy: string | null
   message: Message | null
   fitToken: number // bumped when the view should zoom to fit the plan
+  highlightLayer: string | null // layer under the mouse in the side panel
 
   openFile(file: File): Promise<void>
   choosePart(index: number): Promise<void>
   calibrate(factor: number): void
   straighten(cornersPx: Vec2[]): Promise<void>
   setLayerRole(name: string, role: LayerRole): void
+  setHighlightLayer(name: string | null): void
   setTool(tool: Tool): void
   newPlan(): void
   fit(): void
@@ -75,6 +77,7 @@ export const useStore = create<State>()((set, get) => {
     busy: null,
     message: null,
     fitToken: 0,
+    highlightLayer: null,
 
     async openFile(file) {
       if (!confirmReplace()) return
@@ -126,6 +129,10 @@ export const useStore = create<State>()((set, get) => {
 
     setLayerRole(name, role) {
       set((s) => ({ plan: { ...s.plan, layers: s.plan.layers.map((l) => (l.name === name ? { ...l, role } : l)) } }))
+    },
+
+    setHighlightLayer(name) {
+      set({ highlightLayer: name })
     },
 
     setTool(tool) {

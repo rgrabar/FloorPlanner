@@ -26,7 +26,7 @@ const ROLES: { role: LayerRole; label: string }[] = [
 export function SidePanel() {
   const plan = useStore((s) => s.plan)
   const file = useStore((s) => s.file)
-  const { choosePart, setLayerRole, setTool } = useStore.getState()
+  const { choosePart, setLayerRole, setTool, setHighlightLayer } = useStore.getState()
   const src = plan.source
   const bounds = planBounds(plan)
   const doors = plan.suggestedOpenings.filter((o) => o.kind === 'door').length
@@ -105,10 +105,13 @@ export function SidePanel() {
       {plan.layers.length > 0 && (
         <section>
           <h3>Layers</h3>
-          <p className="muted">Choose what each layer contains. Lines on wall layers become wall suggestions later.</p>
-          <div className="layers">
+          <p className="muted">
+            Point at a layer to see its lines (pink). Choose what each one contains; lines on wall layers become wall
+            suggestions later.
+          </p>
+          <div className="layers" onMouseLeave={() => setHighlightLayer(null)}>
             {plan.layers.map((l) => (
-              <label key={l.name} className="layer">
+              <label key={l.name} className="layer" onMouseEnter={() => setHighlightLayer(l.name)}>
                 <span className={`swatch role-${l.role}`} />
                 <span className="layer-name" title={l.name}>
                   {l.name}

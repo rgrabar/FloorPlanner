@@ -24,6 +24,7 @@ export function PlanCanvas() {
   const plan = useStore((s) => s.plan)
   const tool = useStore((s) => s.tool)
   const fitToken = useStore((s) => s.fitToken)
+  const highlight = useStore((s) => s.highlightLayer)
   const { setTool, calibrate, straighten } = useStore.getState()
 
   const wrapRef = useRef<HTMLDivElement>(null)
@@ -129,7 +130,7 @@ export function PlanCanvas() {
     canvas.height = Math.round(size.h * dpr)
     const ctx = canvas.getContext('2d')!
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
-    drawPlan(ctx, size, view.current, plan, img)
+    drawPlan(ctx, size, view.current, plan, img, highlight)
     drawPicks(ctx, view.current, tool, picks, cursor)
   })
 
@@ -240,7 +241,14 @@ export function PlanCanvas() {
 
 // ---------- drawing ----------
 
-function drawPlan(ctx: CanvasRenderingContext2D, size: { w: number; h: number }, v: View, plan: Plan, img: HTMLImageElement | null) {
+function drawPlan(
+  ctx: CanvasRenderingContext2D,
+  size: { w: number; h: number },
+  v: View,
+  plan: Plan,
+  img: HTMLImageElement | null,
+  highlight: string | null,
+) {
   const S = (p: Vec2) => ({ x: p.x * v.zoom + v.ox, y: p.y * v.zoom + v.oy })
   ctx.fillStyle = '#eef0f3'
   ctx.fillRect(0, 0, size.w, size.h)
@@ -265,11 +273,16 @@ function drawPlan(ctx: CanvasRenderingContext2D, size: { w: number; h: number },
   }
   ctx.stroke()
 
+  // Lines on "other" layers are already visible in the background picture, so with a picture
+  // only lines I gave a role (or the layer I'm pointing at) are drawn on top.
   const bg = plan.background
+  const roleOf = new Map(plan.layers.map((l) => [l.name, l.role]))
+  const drawnRoles: LayerRole[] = bg ? ['window', 'door', 'wall'] : ['other', 'window', 'door', 'wall']
+  const anyOnTop = highlight !== null || plan.layers.some((l) => l.role !== 'other' && l.role !== 'hidden')
   if (bg && img) {
     const tl = S({ x: bg.x, y: bg.y })
     ctx.imageSmoothingQuality = 'high'
-    ctx.globalAlpha = plan.lines.length ? 0.45 : 1 // let the vector lines stand out
+    ctx.globalAlpha = anyOnTop ? 0.4 : 1 // let the coloured lines stand out
     ctx.drawImage(img, tl.x, tl.y, bg.widthPx * bg.cmPerPx * v.zoom, bg.heightPx * bg.cmPerPx * v.zoom)
     ctx.globalAlpha = 1
   }
@@ -289,21 +302,24 @@ function drawPlan(ctx: CanvasRenderingContext2D, size: { w: number; h: number },
     }
   }
 
-  // Vector lines, one batch per layer role.
-  const roleOf = new Map(plan.layers.map((l) => [l.name, l.role]))
-  for (const role of ['other', 'window', 'door', 'wall'] as LayerRole[]) {
+  // Vector lines, one batch per layer role, then the highlighted layer on top.
+  const strokeLines = (keep: (layer: string) => boolean, color: string, width: number) => {
     ctx.beginPath()
     for (const l of plan.lines) {
-      if (roleOf.get(l.layer) !== role) continue
+      if (!keep(l.layer)) continue
       const a = S(l.a)
       const b = S(l.b)
       ctx.moveTo(a.x, a.y)
       ctx.lineTo(b.x, b.y)
     }
-    ctx.strokeStyle = ROLE_COLORS[role]
-    ctx.lineWidth = role === 'wall' ? 1.6 : 1
+    ctx.strokeStyle = color
+    ctx.lineWidth = width
     ctx.stroke()
   }
+  for (const role of drawnRoles) {
+    strokeLines((layer) => roleOf.get(layer) === role, ROLE_COLORS[role], role === 'wall' ? 1.6 : 1)
+  }
+  if (highlight) strokeLines((layer) => layer === highlight, '#db2777', 2)
 
   drawWalls(ctx, S, plan.suggestedWalls, plan.suggestedOpenings, true, v.zoom)
   drawWalls(ctx, S, plan.walls, plan.openings, false, v.zoom)
