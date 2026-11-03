@@ -1,0 +1,28 @@
+{
+  "size": [80, 28, 202],
+  "category": "storage",
+  "colors": { "main": "#f4f3ef", "back": "#e9e7e0" },
+  "clearance": { "front": 40 },
+  "ikea": { "name": "BILLY", "type": "Bookcase", "items": ["00263850"], "variant": "80x28x202 cm, white" },
+  "params": {
+    "shelves": {
+      "type": "list",
+      "label": "Shelf heights in cm (top of each shelf; 105 is fixed)",
+      "default": [9.5, 41, 73, 105, 137, 169]
+    }
+  },
+  "parts": [
+    { "name": "left side, below skirting notch", "box": [0, 0, 7.5, 2, 28, 194.5], "color": "$main" },
+    { "name": "left side, skirting notch", "box": [0, 2.5, 0, 2, 25.5, 7.5], "color": "$main" },
+    { "name": "right side", "box": [78, 0, 7.5, 2, 28, 194.5], "color": "$main" },
+    { "name": "right side, skirting notch", "box": [78, 2.5, 0, 2, 25.5, 7.5], "color": "$main" },
+    { "name": "top", "box": [2, 0, 200, 76, 28, 2], "color": "$main" },
+    { "name": "plinth", "box": [2, 26, 0, 76, 1.5, 8], "color": "$main" },
+    { "name": "back panel", "box": [2, 2.5, 8, 76, 0.5, 192], "color": "$back" },
+    { "name": "shelf", "each": "shelves", "box": [2, 3, "$v - 1.5", 76, 24.5, 1.5], "color": "$main" }
+  ],
+  "surfaces": [
+    { "each": "shelves", "z": "$v", "area": [2, 3, 76, 24.5], "label": "shelf $n" },
+    { "z": 202, "area": [0, 0, 80, 28], "label": "top" }
+  ]
+}

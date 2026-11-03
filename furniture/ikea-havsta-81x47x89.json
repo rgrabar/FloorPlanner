@@ -1,0 +1,45 @@
+{
+  "size": [81, 48.2, 89],
+  "category": "storage",
+  "colors": { "main": "#f3f2ee", "knob": "#cfcdc7" },
+  "clearance": { "front": 45 },
+  "ikea": {
+    "name": "HAVSTA",
+    "type": "Cabinet with plinth",
+    "items": ["00529242"],
+    "variant": "81x47x89 cm, white (48.2 cm deep with knobs)"
+  },
+  "params": {
+    "shelves": { "type": "list", "label": "Shelf heights inside in cm (top of each shelf)", "default": [49] }
+  },
+  "parts": [
+    { "name": "plinth", "box": [0, 0, 0, 81, 47, 10.5], "color": "$main" },
+    { "name": "plinth top", "box": [0, 0, 10.5, 81, 45.5, 1.5], "color": "$main" },
+    { "name": "plinth bevel", "prism": [0, 45.5, 10.5, 81, 1.5, 1.5], "slope": "front", "color": "$main" },
+    { "name": "left side", "box": [1, 1, 12, 2.5, 43, 75], "color": "$main" },
+    { "name": "right side", "box": [77.5, 1, 12, 2.5, 43, 75], "color": "$main" },
+    { "name": "back", "box": [3.5, 1, 12, 74, 1, 75], "color": "$main" },
+    { "name": "bottom", "box": [3.5, 2, 12, 74, 42, 2], "color": "$main" },
+    { "name": "below doors", "box": [1, 44, 12, 79, 2, 1.8], "color": "$main" },
+    { "name": "top", "box": [0, 1, 87, 81, 45, 2], "color": "$main" },
+    { "name": "shelf", "each": "shelves", "box": [3.5, 2, "$v - 1.8", 74, 41, 1.8], "color": "$main" },
+
+    { "name": "left door", "box": [1, 44, 13.8, 39.3, 1.2, 73.1], "color": "$main" },
+    { "name": "left door, outer stile", "box": [1, 45.2, 13.8, 6, 0.8, 73.1], "color": "$main" },
+    { "name": "left door, inner stile", "box": [34.3, 45.2, 13.8, 6, 0.8, 73.1], "color": "$main" },
+    { "name": "left door, top rail", "box": [7, 45.2, 80.9, 27.3, 0.8, 6], "color": "$main" },
+    { "name": "left door, bottom rail", "box": [7, 45.2, 13.8, 27.3, 0.8, 6], "color": "$main" },
+    { "name": "right door", "box": [40.7, 44, 13.8, 39.3, 1.2, 73.1], "color": "$main" },
+    { "name": "right door, inner stile", "box": [40.7, 45.2, 13.8, 6, 0.8, 73.1], "color": "$main" },
+    { "name": "right door, outer stile", "box": [74, 45.2, 13.8, 6, 0.8, 73.1], "color": "$main" },
+    { "name": "right door, top rail", "box": [46.7, 45.2, 80.9, 27.3, 0.8, 6], "color": "$main" },
+    { "name": "right door, bottom rail", "box": [46.7, 45.2, 13.8, 27.3, 0.8, 6], "color": "$main" },
+    { "name": "left knob", "cyl": [37.6, 46, 50.3, 0.9, 2.2], "axis": "y", "color": "$knob", "mat": "metal" },
+    { "name": "right knob", "cyl": [43.9, 46, 50.3, 0.9, 2.2], "axis": "y", "color": "$knob", "mat": "metal" }
+  ],
+  "surfaces": [
+    { "z": 89, "area": [0, 1, 81, 45], "label": "top" },
+    { "z": 14, "area": [3.5, 2, 74, 41], "label": "inside, bottom" },
+    { "each": "shelves", "z": "$v", "area": [3.5, 2, 74, 41], "label": "inside, shelf $n" }
+  ]
+}

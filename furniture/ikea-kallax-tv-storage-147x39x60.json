@@ -1,0 +1,45 @@
+{
+  "size": [146.6, 41, 59.6],
+  "category": "storage",
+  "colors": { "main": "#2f2925", "knob": "#a8a7a3" },
+  "clearance": { "front": 45 },
+  "ikea": {
+    "name": "KALLAX",
+    "type": "TV storage combination",
+    "items": ["10562090", "90286649", "90286649", "60278170", "60278170"],
+    "combination": "s79560673",
+    "variant": "146.6x39.2x59.6 cm, black-brown: TV bench, 2 inserts with 2 drawers, 2 inserts with door (41 cm deep with knobs)"
+  },
+  "params": {
+    "doors": { "type": "list", "label": "Compartments with a door insert (1-4, left to right)", "default": [1, 4] },
+    "drawers": { "type": "list", "label": "Compartments with a 2-drawer insert (1-4)", "default": [2, 3] },
+    "open": { "type": "list", "label": "Empty compartments (1-4)", "default": [] }
+  },
+  "parts": [
+    { "name": "left side", "box": [0, 0, 0, 4.05, 39.2, 59.6], "color": "$main" },
+    { "name": "right side", "box": [142.55, 0, 0, 4.05, 39.2, 59.6], "color": "$main" },
+    { "name": "bottom", "box": [4.05, 0, 0, 138.5, 39.2, 4.05], "color": "$main" },
+    { "name": "top", "box": [4.05, 0, 55.55, 138.5, 39.2, 4.05], "color": "$main" },
+    { "name": "middle shelf", "box": [4.05, 0, 37.55, 138.5, 39.2, 1.5], "color": "$main" },
+    { "name": "lower divider 1", "box": [37.55, 0, 4.05, 1.5, 39.2, 33.5], "color": "$main" },
+    { "name": "lower divider 2 and upper divider", "box": [72.55, 0, 4.05, 1.5, 39.2, 51.5], "color": "$main" },
+    { "name": "lower divider 3", "box": [107.55, 0, 4.05, 1.5, 39.2, 33.5], "color": "$main" },
+
+    { "name": "door insert body", "each": "doors", "box": ["4.3 + ($v - 1) * 35", 2.2, 4.3, 33, 35.4, 33], "color": "$main" },
+    { "name": "door", "each": "doors", "box": ["4.3 + ($v - 1) * 35", 37.6, 4.3, 33, 1.6, 33], "color": "$main" },
+    { "name": "door knob (hinge on the left)", "each": "doors", "when": "$v <= 2", "cyl": ["4.3 + ($v - 1) * 35 + 30", 39.2, 22, 0.8, 1.8], "axis": "y", "color": "$knob", "mat": "metal" },
+    { "name": "door knob (hinge on the right)", "each": "doors", "when": "$v > 2", "cyl": ["4.3 + ($v - 1) * 35 + 3", 39.2, 22, 0.8, 1.8], "axis": "y", "color": "$knob", "mat": "metal" },
+
+    { "name": "drawer insert body", "each": "drawers", "box": ["4.3 + ($v - 1) * 35", 2.2, 4.3, 33, 35.4, 33], "color": "$main" },
+    { "name": "lower drawer front", "each": "drawers", "box": ["4.3 + ($v - 1) * 35", 37.6, 4.3, 33, 1.6, 16.3], "color": "$main" },
+    { "name": "upper drawer front", "each": "drawers", "box": ["4.3 + ($v - 1) * 35", 37.6, 21, 33, 1.6, 16.3], "color": "$main" },
+    { "name": "lower drawer knob", "each": "drawers", "cyl": ["4.3 + ($v - 1) * 35 + 16.5", 39.2, 12.45, 0.8, 1.8], "axis": "y", "color": "$knob", "mat": "metal" },
+    { "name": "upper drawer knob", "each": "drawers", "cyl": ["4.3 + ($v - 1) * 35 + 16.5", 39.2, 29.15, 0.8, 1.8], "axis": "y", "color": "$knob", "mat": "metal" }
+  ],
+  "surfaces": [
+    { "z": 59.6, "area": [0, 0, 146.6, 39.2], "label": "top" },
+    { "z": 39.05, "area": [4.05, 0, 68.5, 39.2], "label": "upper left shelf" },
+    { "z": 39.05, "area": [74.05, 0, 68.5, 39.2], "label": "upper right shelf" },
+    { "each": "open", "z": 4.05, "area": ["4.05 + ($v - 1) * 35", 0, 33.5, 39.2], "label": "compartment $v" }
+  ]
+}

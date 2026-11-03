@@ -521,3 +521,30 @@ button.active {
   font-size: 13px;
   pointer-events: none;
 }
+
+.preview {
+  display: flex;
+  height: 100%;
+}
+
+.preview-side {
+  order: -1;
+  border-left: none;
+  border-right: 1px solid #e2e8f0;
+}
+
+.preview-scene {
+  background: white;
+}
+
+.preview .field input {
+  padding: 4px 6px;
+  border: 1px solid #cbd5e1;
+  border-radius: 5px;
+}
+
+.item-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px 10px;
+}

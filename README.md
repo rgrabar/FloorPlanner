@@ -3,7 +3,8 @@
 Load a floorplan, turn it into a 3D model and place accurately modelled IKEA furniture in it.
 See [PROMPT.md](PROMPT.md) for the full plan. Built one milestone at a time.
 
-**Status:** Milestones 1 (import any floorplan, set its scale), 2 (walls, doors, windows) and 3 (3D model) are done.
+**Status:** Milestones 1 (import any floorplan, set its scale), 2 (walls, doors, windows), 3 (3D model) and
+4 (IKEA furniture models: tools and method) are done.
 
 ## Run it
 
@@ -79,6 +80,48 @@ Browsers can't read DWG, so convert it to DXF first:
 
 3. Open the `My flat.dxf` file it creates.
 
+## IKEA furniture models
+
+Each piece of furniture is a JSON file in `furniture/`, built from simple shapes with the real
+product measurements. The method and format are in [PROMPT.md](PROMPT.md) (4A–4F). The tools:
+
+```bash
+python tools/ikea.py search "billy bookcase"
+```
+
+```bash
+python tools/ikea.py show 00263850
+```
+
+```bash
+python tools/ikea.py photos 00263850
+```
+
+```bash
+python tools/check_model.py
+```
+
+- `search` lists products on IKEA Ireland (item number, size, price, link).
+- `show` prints the product's own measurements (not the package's) and caches them in `cache/`.
+- `photos` downloads the product's photos (not the recommended products') and makes one
+  contact sheet, `cache/<item>/sheet.jpg`, which usually includes IKEA's dimension drawing.
+- `check_model.py` checks every model: all parts inside the size box (for every option), surfaces
+  for anything with tops or shelves, known colours, article numbers.
+
+Preview a model at http://localhost:5173/?preview=ikea-billy-80x28x202. It has a 3/4 view like
+IKEA's photos, front/side/top views to compare with IKEA's drawings, the model's options, and its
+surfaces shown in green.
+
+Format details beyond PROMPT.md 4C:
+- Parts: `box` [x, y, z, w, d, h] (optional `radius` for rounded edges); `cyl` [x, y, z, r, length]
+  with `axis` z (centre x, y; bottom z), x or y (starting at x or y); `sphere` [cx, cy, cz, r];
+  `prism` [x, y, z, w, d, h] with `slope` front/back/left/right (the low side).
+- `mat`: wood, metal, fabric, plastic, stone or glass. `color`: "#rrggbb" or "$name" from `colors`.
+- Parameters: `list` (used with `each`), `choice` (options) and `number`; each can have a `label`.
+- In `each`: `$v` is the value, `$i` the index from 0, `$n` from 1 (labels can use them too).
+- Expressions: numbers, 'strings', `$vars` (`$W`, `$D`, `$H` and parameters), `+ - * /`, `( )`,
+  `== != < > <= >=`, `&& || !`. The same rules are in `src/furniture/expr.ts` and `tools/furniture.py`.
+
 ## Test files
 
 `samples/` has the same small apartment (9 × 7 m, 920 cm outside) in every format.
@@ -97,6 +140,10 @@ src/editor/    2D canvas, calibrate dialog
 src/store/     app state and autosave
 src/ui/        toolbar and side panel
 src/project/   save/load project files
-tools/         convert.py (DWG → DXF), make_samples.py
+src/three/     3D view of the plan
+src/furniture/ furniture model format, 3D rendering, model preview page
+furniture/     furniture models (JSON)
+tools/         convert.py (DWG → DXF), make_samples.py, ikea.py, furniture.py, check_model.py
+cache/         downloaded IKEA pages and photos (not in git)
 samples/       test floorplans
 ```
