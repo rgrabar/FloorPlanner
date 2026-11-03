@@ -15,15 +15,24 @@ const TOOLS: { tool: Tool; label: string; key: string; title: string; needsPlan?
 export function Toolbar() {
   const plan = useStore((s) => s.plan)
   const tool = useStore((s) => s.tool)
+  const viewMode = useStore((s) => s.viewMode)
   const canUndo = useStore((s) => s.past.length > 0)
   const canRedo = useStore((s) => s.future.length > 0)
-  const { openFile, setTool, newPlan, fit, undo, redo } = useStore.getState()
+  const { openFile, setTool, setViewMode, newPlan, fit, undo, redo } = useStore.getState()
   const input = useRef<HTMLInputElement>(null)
   const hasPlan = !!plan.source || !!plan.background
 
   return (
     <header className="toolbar">
       <strong className="brand">FloorPlanner</strong>
+      <div className="segmented">
+        <button className={viewMode === '2d' ? 'active' : ''} onClick={() => setViewMode('2d')}>
+          Plan
+        </button>
+        <button className={viewMode === '3d' ? 'active' : ''} onClick={() => setViewMode('3d')}>
+          3D
+        </button>
+      </div>
       <button className="primary" onClick={() => input.current?.click()}>
         Open…
       </button>
@@ -55,13 +64,13 @@ export function Toolbar() {
           key={t.tool}
           className={tool === t.tool ? 'active' : ''}
           title={`${t.title} (${t.key})`}
-          disabled={t.needsPlan && !hasPlan}
+          disabled={viewMode === '3d' || (t.needsPlan && !hasPlan)}
           onClick={() => setTool(t.tool)}
         >
           {t.label}
         </button>
       ))}
-      <button onClick={fit} title="Zoom to fit (F)">
+      <button onClick={fit} title="Zoom to fit (F)" disabled={viewMode === '3d'}>
         Fit
       </button>
     </header>

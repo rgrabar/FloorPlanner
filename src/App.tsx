@@ -1,12 +1,16 @@
-import { useEffect, useState } from 'react'
+import { lazy, Suspense, useEffect, useState } from 'react'
 import { PlanCanvas } from './editor/PlanCanvas'
 import { startAutosave, useStore, type Tool } from './store/store'
 import { SidePanel } from './ui/SidePanel'
 import { Toolbar } from './ui/Toolbar'
 
+// three.js is big, so the 3D view is only loaded when it's first opened.
+const Scene3D = lazy(() => import('./three/Scene3D'))
+
 export function App() {
   const busy = useStore((s) => s.busy)
   const message = useStore((s) => s.message)
+  const viewMode = useStore((s) => s.viewMode)
   const { openFile, setTool, fit, showMessage, undo, redo } = useStore.getState()
   const [dragging, setDragging] = useState(false)
 
@@ -35,7 +39,8 @@ export function App() {
         e.preventDefault()
         return
       }
-      if (e.altKey) return
+      // In 3D, letters are for walking (W A S D), not for switching plan tools.
+      if (e.altKey || useStore.getState().viewMode === '3d') return
       if (TOOL_KEYS[k]) setTool(TOOL_KEYS[k])
       else if (k === 'f') fit()
     }
@@ -60,7 +65,13 @@ export function App() {
     >
       <Toolbar />
       <main className="main">
-        <PlanCanvas />
+        {viewMode === '2d' ? (
+          <PlanCanvas />
+        ) : (
+          <Suspense fallback={<div className="scene-wrap loading">Loading 3D…</div>}>
+            <Scene3D />
+          </Suspense>
+        )}
         <SidePanel />
       </main>
       {busy && <div className="status busy">{busy}</div>}

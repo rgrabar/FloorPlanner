@@ -6,6 +6,7 @@ export function emptyPlan(): Plan {
     version: 1,
     source: null,
     scaleKnown: false,
+    roomHeight: 250,
     background: null,
     lines: [],
     layers: [],

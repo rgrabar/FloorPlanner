@@ -23,12 +23,21 @@ export interface DrawDefaults {
   window: { width: number; height: number; sill: number }
 }
 
+/** How the 3D view looks. */
+export interface View3D {
+  camera: 'orbit' | 'top' | 'walk'
+  ceiling: boolean
+  planOnFloor: boolean // the floorplan picture as the floor's texture
+}
+
 const MAX_UNDO = 100
 
 interface State {
   plan: Plan
   file: File | null // the imported file, kept to switch pages/levels
   tool: Tool
+  viewMode: '2d' | '3d'
+  view3d: View3D
   selection: Selection
   defaults: DrawDefaults
   past: Plan[]
@@ -46,6 +55,8 @@ interface State {
   findWalls(): void
   setHighlightLayer(name: string | null): void
   setTool(tool: Tool): void
+  setViewMode(mode: '2d' | '3d'): void
+  setView3d(patch: Partial<View3D>): void
   select(selection: Selection): void
   setDefaults(patch: Partial<DrawDefaults>): void
   /** An undoable change to the plan. */
@@ -112,6 +123,8 @@ export const useStore = create<State>()((set, get) => {
     plan: emptyPlan(),
     file: null,
     tool: 'select',
+    viewMode: '2d',
+    view3d: { camera: 'orbit', ceiling: false, planOnFloor: false },
     selection: null,
     defaults: {
       wallThickness: 10,
@@ -191,6 +204,14 @@ export const useStore = create<State>()((set, get) => {
 
     setTool(tool) {
       set({ tool })
+    },
+
+    setViewMode(viewMode) {
+      set({ viewMode })
+    },
+
+    setView3d(patch) {
+      set((s) => ({ view3d: { ...s.view3d, ...patch } }))
     },
 
     select(selection) {

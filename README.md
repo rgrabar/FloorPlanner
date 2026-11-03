@@ -3,7 +3,7 @@
 Load a floorplan, turn it into a 3D model and place accurately modelled IKEA furniture in it.
 See [PROMPT.md](PROMPT.md) for the full plan. Built one milestone at a time.
 
-**Status:** Milestones 1 (import any floorplan, set its scale) and 2 (walls, doors, windows) are done.
+**Status:** Milestones 1 (import any floorplan, set its scale), 2 (walls, doors, windows) and 3 (3D model) are done.
 
 ## Run it
 
@@ -35,6 +35,15 @@ Then open http://localhost:5173.
    its square ends to reshape it (joined walls follow), and doors/windows to slide them. Double-click a wall to
    split it. Delete removes the selection.
 8. **Undo/Redo:** Ctrl+Z and Ctrl+Y (or Ctrl+Shift+Z).
+
+9. **3D:** switch between **Plan** and **3D** at the top left. In 3D:
+   - **Orbit:** drag to turn around the model, right-drag to move, wheel to zoom. Walls between you and the
+     middle of the view fade out so you can see inside.
+   - **Top:** straight down, without perspective.
+   - **Walk:** click *Start walking*, then W A S D (or arrows) to move, Shift to run, mouse to look, Esc to
+     stop. You walk through doorways but not through walls.
+   - **Room height** (for walls without their own height), **Ceiling** and **Plan on floor** (the floorplan
+     picture as the floor) are in the bar at the top.
 
 Drag empty space (or hold Space, or use the right mouse button) to pan. The mouse wheel zooms. **Fit** (F) shows everything.
 

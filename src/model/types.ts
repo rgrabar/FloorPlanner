@@ -18,7 +18,7 @@ export interface Wall {
   a: Vec2 // centreline start
   b: Vec2 // centreline end
   thickness: number
-  height?: number
+  height?: number // cm; the plan's room height when not set
 }
 
 export type OpeningKind = 'door' | 'window'
@@ -85,6 +85,7 @@ export interface Plan {
   version: 1
   source: PlanSource | null
   scaleKnown: boolean
+  roomHeight: number // cm, for walls without their own height
   background: Background | null
   lines: Segment[]
   layers: Layer[]

@@ -428,3 +428,96 @@ button.active {
   gap: 6px;
   margin-bottom: 6px;
 }
+
+.segmented {
+  display: inline-flex;
+}
+
+.segmented button {
+  border-radius: 0;
+}
+
+.segmented button + button {
+  margin-left: -1px;
+}
+
+.segmented button:first-child {
+  border-radius: 6px 0 0 6px;
+}
+
+.segmented button:last-child {
+  border-radius: 0 6px 6px 0;
+}
+
+.scene-wrap {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  background: #e8ecf1;
+}
+
+.scene-wrap.loading {
+  display: grid;
+  place-content: center;
+  color: #64748b;
+}
+
+.scene-bar {
+  position: absolute;
+  z-index: 2; /* stays clickable above the walk overlay */
+  top: 10px;
+  left: 10px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  padding: 6px 10px;
+  border-radius: 8px;
+  background: white;
+  box-shadow: 0 2px 10px rgba(15, 23, 42, 0.15);
+}
+
+.check {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 13px;
+}
+
+.walk-start-wrap {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  gap: 8px;
+  text-align: center;
+  color: #0f172a;
+  background: rgba(232, 236, 241, 0.35);
+}
+
+.walk-start-wrap p {
+  margin: 0;
+  padding: 4px 10px;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.85);
+}
+
+.walk-start {
+  padding: 10px 18px;
+  font-size: 16px;
+}
+
+.walk-help {
+  position: absolute;
+  bottom: 14px;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 6px 12px;
+  border-radius: 6px;
+  background: rgba(15, 23, 42, 0.8);
+  color: white;
+  font-size: 13px;
+  pointer-events: none;
+}

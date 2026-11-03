@@ -59,7 +59,7 @@ export function SelectionPanel() {
         <div className="fields">
           <NumberField label="Length" value={len} min={1} onChange={(v) => edit((p) => setWallLength(p, w.id, v))} />
           <NumberField label="Thickness" value={w.thickness} min={1} onChange={(v) => edit((p) => updateWall(p, w.id, { thickness: v }))} />
-          <NumberField label="Height" value={w.height ?? 250} min={1} onChange={(v) => edit((p) => updateWall(p, w.id, { height: v }))} />
+          <NumberField label="Height" value={w.height ?? plan.roomHeight} min={1} onChange={(v) => edit((p) => updateWall(p, w.id, { height: v }))} />
         </div>
         <p className="muted">Drag the wall to move it, or its square ends to reshape it. Double-click a wall to split it there.</p>
         <div className="buttons">
