@@ -2,11 +2,10 @@ import { create } from 'zustand'
 import { importFile } from '../import'
 import { makeBackground } from '../import/image'
 import { straightenImage } from '../import/perspective'
-import type { ImportResult } from '../import/types'
-import { emptyPlan, layersFromLines, scalePlan } from '../model/plan'
+import { planFromImport, withFoundWalls } from '../detect/planFromImport'
+import { emptyPlan, scalePlan } from '../model/plan'
 import type { LayerRole, Plan, Vec2 } from '../model/types'
 import type { Selection } from '../model/walls'
-import { wallsFromLines } from '../model/wallsFromLines'
 import { loadAutosave, readProject, saveAutosave } from '../project/saveLoad'
 
 export type Tool = 'select' | 'pan' | 'wall' | 'door' | 'window' | 'calibrate' | 'straighten'
@@ -71,28 +70,6 @@ interface State {
   showMessage(message: Message | null): void
 }
 
-function planFromImport(r: ImportResult, fileName: string): Plan {
-  const plan: Plan = {
-    ...emptyPlan(),
-    source: { fileName, format: r.format, parts: r.parts, note: r.note },
-    scaleKnown: r.scaleKnown,
-    background: r.background,
-    lines: r.lines,
-    layers: layersFromLines(r.lines),
-    suggestedWalls: r.suggestedWalls,
-    suggestedOpenings: r.suggestedOpenings,
-    rooms: r.rooms,
-  }
-  // Vector files with recognisable wall layers get wall suggestions straight away.
-  if (!plan.suggestedWalls.length && plan.layers.some((l) => l.role === 'wall')) return withFoundWalls(plan)
-  return plan
-}
-
-function withFoundWalls(plan: Plan): Plan {
-  const found = wallsFromLines(plan.lines, new Map(plan.layers.map((l) => [l.name, l.role])))
-  return { ...plan, suggestedWalls: found.walls, suggestedOpenings: found.openings }
-}
-
 const errorText = (e: unknown) => (e instanceof Error ? e.message : String(e))
 
 export const useStore = create<State>()((set, get) => {
@@ -146,7 +123,7 @@ export const useStore = create<State>()((set, get) => {
       }
       await run(`Reading ${file.name}…`, async () => {
         const result = await importFile(file)
-        replacePlan(planFromImport(result, file.name), { file })
+        replacePlan(await planFromImport(result, file.name), { file })
       })
     },
 
@@ -155,7 +132,7 @@ export const useStore = create<State>()((set, get) => {
       if (!file || !plan.source?.parts || !confirmReplace()) return
       const label = plan.source.parts.names[index]
       await run(`Loading ${label}…`, async () => {
-        replacePlan(planFromImport(await importFile(file, { part: index }), file.name))
+        replacePlan(await planFromImport(await importFile(file, { part: index }), file.name))
       })
     },
 

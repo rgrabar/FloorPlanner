@@ -3,3 +3,8 @@ dist/
 cache/
 *.local
 __pycache__/
+bench/*.pdf
+bench/*.png
+bench/*.jpg
+bench/manifest.json
+bench/out/

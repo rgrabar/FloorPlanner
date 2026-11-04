@@ -24,10 +24,11 @@ Then open http://localhost:5173.
    It's straightened with its real proportions.
 3. **Calibrate** (C): click both ends of a line whose real length you know (a dimension line
    is ideal; hold Shift to keep it straight), then type its length (`350`, `350 cm`, `3.5 m`, `3500 mm`).
-4. **Walls from the file:** for vector files, set the layer that holds the walls to *Walls* (point at a layer to
-   see its lines) and click **Find walls in wall layers**. Walls are found from their two outlines, and gaps
-   become doors or windows. They show dashed: click one to accept or delete it, or click **Accept all**.
-   IFC and Sweet Home 3D files come with their walls already.
+4. **Walls from the file:** walls, doors and windows are found automatically when a plan is opened
+   (see *How walls are found* below). They show dashed: check them, click one to accept or delete
+   it, or click **Accept all**. For pictures (and PDFs not drawn at 1:100) the scale is estimated
+   from the wall thickness, so calibrate for exact sizes. You can still set layers to *Walls* by hand
+   and click **Find walls in wall layers**.
 5. **Wall** (W): click along the middle of a wall, point by point. It snaps to wall ends, onto walls and to
    45°/90° (hold Alt to not snap). Click the first point to close a room; double-click or Esc to stop.
    The thickness for new walls is set top left.
@@ -122,14 +123,43 @@ Format details beyond PROMPT.md 4C:
 - Expressions: numbers, 'strings', `$vars` (`$W`, `$D`, `$H` and parameters), `+ - * /`, `( )`,
   `== != < > <= >=`, `&& || !`. The same rules are in `src/furniture/expr.ts` and `tools/furniture.py`.
 
+## How walls are found
+
+Two detectors run on every plan, and the better result is kept:
+
+- **From the picture** (filled walls, scans, photos, app exports, and outlined drawings saved as
+  pictures): dark ink thicker than the drawing's lines is traced into straight bands of constant
+  thickness. Outlined walls (two thin lines) are filled in first. Text, grids, furniture and door
+  swings are left out because they're thin, curved, light or not wall-shaped.
+- **From the drawing's lines** (CAD-style PDFs, DXF, SVG): pairs of parallel outlines a wall-thickness
+  apart. The layer holding the walls is worked out by trying each one.
+
+Gaps between wall pieces, and gaps between a wall's end and another wall, are judged from the
+picture: a quarter-circle swing or leaf from a jamb makes a door, a line running along inside the
+wall makes a window, wall drawn in pieces is joined, and an empty gap is left open.
+
+### Testing wall detection
+
+```bash
+npm run bench
+```
+
+That draws 40 random flats in 8 styles (filled, merged, outlined and hatched PDFs, app exports with
+grids and furniture, clean pictures, outlined pictures, tilted noisy scans) into `bench/`, with the
+exact walls and openings of each. Then open http://localhost:5173/?bench (with `npm run dev`
+running): it scores the detection against them and also runs the real plans in `samples/`. An
+overlay of each result is saved to `bench/out/`: true walls in green, found walls in blue,
+doors orange, windows cyan. Filter with `?bench=pdf-app`, or force one detector with `&use=picture`
+or `&use=lines`.
+
 ## Test files
 
 `samples/` has the same small apartment (9 × 7 m, 920 cm outside) in every format.
 Regenerate them with `npm run samples`. There is no HEIC sample, because Pillow can't write HEIC.
 
-`samples/apartment-rijeka.pdf` is a real architect's plan (1:100, but the PDF is shrunk about 3.5 %).
-On it, set "Black lines 0.25 mm" to Walls and "Blue lines 0.10 mm" to Windows, then Find walls.
-Calibrate on the 1106 cm dimension line.
+Real plans: `apartment-rijeka.pdf` (an architect's CAD plan, 1:100 but shrunk about 3.5 %:
+calibrate on the 1106 cm line), `20x45-Model.pdf` (filled walls, in feet) and `matija-doma.pdf`
+(an app export with a 50 cm grid, coloured rooms and furniture).
 
 ## Folders
 
@@ -140,10 +170,13 @@ src/editor/    2D canvas, calibrate dialog
 src/store/     app state and autosave
 src/ui/        toolbar and side panel
 src/project/   save/load project files
+src/detect/    wall detection: from pictures (raster.ts), choosing the best result (planFromImport.ts)
+src/bench/     the ?bench test page and its scoring
 src/three/     3D view of the plan
 src/furniture/ furniture model format, 3D rendering, model preview page
 furniture/     furniture models (JSON)
-tools/         convert.py (DWG → DXF), make_samples.py, ikea.py, furniture.py, check_model.py
+tools/         convert.py (DWG → DXF), make_samples.py, make_bench.py, ikea.py, furniture.py, check_model.py
+bench/         generated test plans and bench results (not in git)
 cache/         downloaded IKEA pages and photos (not in git)
 samples/       test floorplans
 ```

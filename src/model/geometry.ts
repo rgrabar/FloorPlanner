@@ -161,11 +161,15 @@ export function attachOpenings(walls: Wall[], items: LooseOpening[]): Opening[] 
     }
     if (!best) continue
     const width = Math.min(item.width, best.length)
+    const offset = Math.max(0, Math.min(best.length - width, best.t - width / 2))
+    // The same opening found twice (e.g. from two pieces of one wall): keep it once.
+    const wallId = best.wall.id
+    if (result.some((o) => o.wallId === wallId && o.kind === item.kind && o.offset < offset + width && offset < o.offset + o.width)) continue
     result.push({
       id: newId(),
       wallId: best.wall.id,
       kind: item.kind,
-      offset: Math.max(0, Math.min(best.length - width, best.t - width / 2)),
+      offset,
       width,
       height: item.height,
       sill: item.sill,

@@ -548,3 +548,17 @@ button.active {
   flex-wrap: wrap;
   gap: 2px 10px;
 }
+
+.bench {
+  border-collapse: collapse;
+  margin-bottom: 16px;
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+}
+
+.bench th,
+.bench td {
+  padding: 3px 8px;
+  border-bottom: 1px solid #e2e8f0;
+  text-align: left;
+}
