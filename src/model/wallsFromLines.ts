@@ -452,7 +452,9 @@ function wallScore(segments: Segment[], layer: string): number {
   if (coverage < 0.5) return 0
   // Very thin pairs are glazing or furniture outlines, not walls.
   const thickness = walls.map((w) => w.thickness).sort((a, b) => a - b)[walls.length >> 1]
-  return structureScore(walls) * coverage * (thickness < 6 ? 0.2 : 1)
+  // Short pairs are furniture (a sofa's back, a wardrobe's sides): walls run for metres.
+  const length = walls.map((w) => lineLength(w)).sort((a, b) => a - b)[walls.length >> 1]
+  return structureScore(walls) * coverage * (thickness < 6 ? 0.2 : 1) * (length < 120 ? 0.2 : 1)
 }
 
 /**
@@ -494,4 +496,72 @@ export function guessLayerRoles(segments: Segment[], layers: Layer[]): Layer[] {
   }
   const roles = rolesWith((name) => name === best.name)
   return layers.map((l) => ({ ...l, role: roles.get(l.name) ?? l.role }))
+}
+
+/**
+ * Only the building: the walls connected to its main network of walls. Outlines of furniture,
+ * letters and dimension ticks can look like short walls, but they stand on their own. With
+ * `danglingToo` (outlined pictures, where furniture lines easily pass for walls), short pieces
+ * hanging off a wall by one end go too. Not for other plans: there, a short real wall between a
+ * window and a door often has nothing attached at one end.
+ */
+export function keepBuilding(walls: Wall[], openings: Opening[], danglingToo = false): { walls: Wall[]; openings: Opening[] } {
+  if (walls.length < 4) return { walls, openings }
+  const touches = (p: Vec2, self: Wall, other: Wall) => {
+    const { t, d, length } = projectOnWall(p, other)
+    const reach = other.thickness / 2 + self.thickness / 2 + 5
+    return t > -reach && t < length + reach && d <= reach
+  }
+  const joined = (a: Wall, b: Wall) => touches(a.a, a, b) || touches(a.b, a, b) || touches(b.a, b, a) || touches(b.b, b, a)
+
+  // Groups of walls that meet; the building is the group with the most wall length.
+  const parent = walls.map((_, i) => i)
+  const find = (i: number): number => (parent[i] === i ? i : (parent[i] = find(parent[i])))
+  for (let i = 0; i < walls.length; i++) {
+    for (let j = i + 1; j < walls.length; j++) if (find(i) !== find(j) && joined(walls[i], walls[j])) parent[find(i)] = find(j)
+  }
+  const length = new Map<number, number>()
+  walls.forEach((w, i) => length.set(find(i), (length.get(find(i)) ?? 0) + dist(w.a, w.b)))
+  const main = Math.max(...length.values())
+  // Other big groups stay too (a garage, a second wing).
+  let kept = walls.filter((_, i) => length.get(find(i))! >= main * 0.3)
+
+  // Short pieces hanging off a wall by one end, with no door or window: not walls.
+  const withOpening = new Set(openings.map((o) => o.wallId))
+  // Removing one can leave the next hanging (a chain of furniture lines), so repeat until none go.
+  for (let before = danglingToo ? -1 : kept.length; before !== kept.length; ) {
+    before = kept.length
+    kept = kept.filter((w) => {
+      if (withOpening.has(w.id) || dist(w.a, w.b) >= 150) return true
+      const others = kept.filter((o) => o !== w)
+      return others.some((o) => touches(w.a, w, o)) && others.some((o) => touches(w.b, w, o))
+    })
+  }
+  const ids = new Set(kept.map((w) => w.id))
+  return { walls: kept, openings: openings.filter((o) => ids.has(o.wallId)) }
+}
+
+/**
+ * Walls in a plan come in a few thicknesses (outer, inner, maybe partitions), each making up a
+ * good share of the wall length. Short "walls" of some other thickness are something else drawn
+ * with two parallel lines (furniture, mostly). For outlined plans, where those are common.
+ */
+export function keepTypicalThickness(walls: Wall[], openings: Opening[]): { walls: Wall[]; openings: Opening[] } {
+  const total = walls.reduce((t, w) => t + dist(w.a, w.b), 0)
+  if (!total) return { walls, openings }
+  // Thicknesses (to 10 %) that carry at least 15 % of the wall length.
+  const typical: number[] = []
+  for (const w of walls) {
+    const near = walls.filter((o) => Math.abs(o.thickness - w.thickness) <= w.thickness * 0.1)
+    if (near.reduce((t, o) => t + dist(o.a, o.b), 0) >= total * 0.15 && !typical.some((t) => Math.abs(t - w.thickness) <= t * 0.1)) {
+      typical.push(w.thickness)
+    }
+  }
+  if (!typical.length) return { walls, openings }
+  const withOpening = new Set(openings.map((o) => o.wallId))
+  const kept = walls.filter(
+    (w) => withOpening.has(w.id) || dist(w.a, w.b) >= 300 || typical.some((t) => Math.abs(w.thickness - t) <= t * 0.25),
+  )
+  const ids = new Set(kept.map((w) => w.id))
+  return { walls: kept, openings: openings.filter((o) => ids.has(o.wallId)) }
 }

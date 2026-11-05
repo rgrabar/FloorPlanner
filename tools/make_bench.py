@@ -1,11 +1,13 @@
-"""Generates test floorplans with known answers, for testing wall detection.
+"""Generates test floorplans with known answers, for testing wall and furniture detection.
 
     python tools/make_bench.py [count per style, default 5]
 
 Each plan is a random flat (outer walls, inner walls with T-junctions, doors, windows) drawn in
 several styles, the way real plans come: filled walls, outlined walls, hatched walls, app exports
-with grids and furniture, clean pictures and bad scans. Next to each file the exact walls and
-openings are written to bench/manifest.json, in the coordinates the app's importer produces.
+with grids and named furniture, clean pictures and bad scans. Every room is furnished (beds, sofas,
+tables with chairs, wardrobes, kitchens, bathrooms) with CAD symbols or coloured named patches.
+Next to each file the exact walls, openings and furniture are written to bench/manifest.json, in
+the coordinates the app's importer produces.
 Open http://localhost:5173/?bench to score detection against them.
 """
 
@@ -90,6 +92,170 @@ def make_flat(rnd):
             place(i, rnd.randrange(80, 185, 5), "window")
     place(rnd.randrange(4), rnd.randrange(90, 105, 5), "door")
     return walls, openings, done
+
+
+# ---------- furniture ----------
+
+# (model, width along the wall, depth from the wall). Sets per kind of room, biggest first.
+PIECES = {
+    "bed2": ("generic-bed", 170, 215), "bed1": ("generic-bed", 100, 210), "sofa": ("generic-sofa", 210, 90),
+    "armchair": ("generic-armchair", 80, 80), "table": ("generic-dining-table", 140, 80),
+    "desk": ("generic-desk", 120, 60), "wardrobe": ("generic-wardrobe", 150, 60), "tv": ("generic-tv-unit", 160, 40),
+    "bookcase": ("generic-bookcase", 80, 30), "toilet": ("generic-toilet", 38, 68), "basin": ("generic-washbasin", 60, 45),
+    "tub": ("generic-bathtub", 170, 75), "kitchen": ("generic-kitchen-base", 240, 60), "nightstand": ("generic-nightstand", 45, 40),
+}
+ROOM_SETS = [
+    (14, [["sofa", "tv", "armchair", "table"], ["bed2", "wardrobe", "desk"], ["kitchen", "table", "sofa"]]),
+    (8, [["bed2", "wardrobe"], ["bed1", "desk", "wardrobe"], ["sofa", "tv", "bookcase"], ["kitchen", "table"]]),
+    (0, [["toilet", "basin"], ["tub", "basin", "toilet"], ["bookcase", "wardrobe"]]),
+]
+LABELS = {
+    "generic-bed": ["Bed", "MALM", "Double bed"], "generic-sofa": ["Sofa", "KIVIK 3-seat sofa"], "generic-armchair": ["Armchair", "POANG"],
+    "generic-dining-table": ["Dining table", "LISABO table"], "generic-desk": ["Desk", "MICKE"], "generic-wardrobe": ["Wardrobe", "PAX"],
+    "generic-tv-unit": ["TV unit", "BESTA"], "generic-bookcase": ["Bookcase", "BILLY"], "generic-toilet": ["Toilet", "WC"],
+    "generic-washbasin": ["Washbasin"], "generic-bathtub": ["Bath tub", "Bathtub"], "generic-kitchen-base": ["Kitchen", "Kitchen base"],
+    "generic-chair": ["Chair"], "generic-office-chair": ["Chair"], "generic-nightstand": ["Bedside"],
+}
+
+
+def furnish(walls, openings, rooms, rnd):
+    """Pieces against the walls of each room, clear of doors and of each other.
+    Each piece: (model, centre x, y, rotation, width, depth); rotation as in the app (0 = back up)."""
+    doors = []  # door centres, with their width
+    for o in openings:
+        if o[3] == "door":
+            a, b, _, _ = opening_geometry(walls, o)
+            doors.append(((a[0] + b[0]) / 2, (a[1] + b[1]) / 2, math.dist(a, b)))
+    t_in = max(w[4] for w in walls[4:]) if len(walls) > 4 else 12
+    t_out = walls[0][4]
+    placed = []
+
+    def free(rect):
+        x0, y0, x1, y1 = rect
+        for dx, dy, dw in doors:  # a door's swing needs about its width of room
+            if x0 - dw - 10 < dx < x1 + dw + 10 and y0 - dw - 10 < dy < y1 + dw + 10:
+                return False
+        return all(x1 + 15 < q[0] or x0 - 15 > q[2] or y1 + 15 < q[1] or y0 - 15 > q[3] for q in (p[6] for p in placed))
+
+    for (rx0, ry0, rx1, ry1) in rooms:
+        # The room's inside: half a wall in from each centreline (outer walls are thicker).
+        ix0 = rx0 + (t_out if rx0 == 0 else t_in) / 2
+        iy0 = ry0 + (t_out if ry0 == 0 else t_in) / 2
+        ix1 = rx1 - (t_out if rx1 == walls[0][2] else t_in) / 2
+        iy1 = ry1 - (t_out if ry1 == walls[1][3] else t_in) / 2
+        area = (ix1 - ix0) * (iy1 - iy0) / 1e4
+        sets = next(options for limit, options in ROOM_SETS if area >= limit)
+        for key in rnd.choice(sets):
+            model, w, d = PIECES[key]
+            if key == "table":  # tables stand in the room, with chairs round them
+                cx, cy = (ix0 + ix1) / 2 + rnd.uniform(-30, 30), (iy0 + iy1) / 2 + rnd.uniform(-30, 30)
+                along_x = (ix1 - ix0) >= (iy1 - iy0)
+                hw, hd = (w / 2, d / 2) if along_x else (d / 2, w / 2)
+                rect = (cx - hw - 55, cy - hd - 55, cx + hw + 55, cy + hd + 55)
+                if rect[0] < ix0 or rect[2] > ix1 or rect[1] < iy0 or rect[3] > iy1 or not free(rect):
+                    continue
+                rot = 0 if along_x else 90
+                placed.append((model, cx, cy, rot, w, d, rect))
+                for side in (-1, 1):  # two chairs on each long side, facing the table
+                    for k in (-0.25, 0.25):
+                        if along_x:
+                            placed.append(("generic-chair", cx + k * w, cy + side * (hd + 25), 0 if side < 0 else 180, 45, 45, (0, 0, 0, 0)))
+                        else:
+                            placed.append(("generic-chair", cx + side * (hw + 25), cy + k * w, 270 if side < 0 else 90, 45, 45, (0, 0, 0, 0)))
+                continue
+            for _ in range(25):
+                side = rnd.choice(["top", "bottom", "left", "right"])
+                if side in ("top", "bottom"):
+                    if ix1 - ix0 < w + 10:
+                        continue
+                    cx = rnd.uniform(ix0 + w / 2, ix1 - w / 2)
+                    cy = iy0 + d / 2 if side == "top" else iy1 - d / 2
+                    rect = (cx - w / 2, cy - d / 2, cx + w / 2, cy + d / 2)
+                else:
+                    if iy1 - iy0 < w + 10:
+                        continue
+                    cy = rnd.uniform(iy0 + w / 2, iy1 - w / 2)
+                    cx = ix0 + d / 2 if side == "left" else ix1 - d / 2
+                    rect = (cx - d / 2, cy - w / 2, cx + d / 2, cy + w / 2)
+                if not free(rect):
+                    continue
+                rot = {"top": 0, "right": 90, "bottom": 180, "left": 270}[side]
+                placed.append((model, cx, cy, rot, w, d, rect))
+                if key == "desk":  # its chair, pushed in
+                    fx, fy = -math.sin(math.radians(rot)), math.cos(math.radians(rot))
+                    placed.append(("generic-office-chair", cx + fx * (d / 2 + 5), cy + fy * (d / 2 + 5), (rot + 180) % 360, 45, 45, (0, 0, 0, 0)))
+                break
+    return [p[:6] for p in placed]
+
+
+def footprint(piece):
+    model, cx, cy, rot, w, d = piece
+    r = math.radians(rot)
+    u, v = (math.cos(r), math.sin(r)), (-math.sin(r), math.cos(r))
+    return [(cx + u[0] * a + v[0] * b, cy + u[1] * a + v[1] * b) for a, b in ((-w / 2, -d / 2), (w / 2, -d / 2), (w / 2, d / 2), (-w / 2, d / 2))]
+
+
+def piece_outline(piece):
+    """Drawing primitives in plan cm for a CAD symbol: ('poly', pts, closed) items."""
+    model, cx, cy, rot, w, d = piece
+    r = math.radians(rot)
+    u = (math.cos(r), math.sin(r))  # along the front, left to right
+    v = (-math.sin(r), math.cos(r))  # back to front
+
+    def P(a, b):  # a across (-w/2..w/2), b from the back (0..d)
+        return (cx + u[0] * a + v[0] * (b - d / 2), cy + u[1] * a + v[1] * (b - d / 2))
+
+    def rect(a0, b0, a1, b1):
+        return ("poly", [P(a0, b0), P(a1, b0), P(a1, b1), P(a0, b1)], True)
+
+    def ellipse(ca, cb, ra, rb, n=20):
+        return ("poly", [P(ca + ra * math.cos(2 * math.pi * k / n), cb + rb * math.sin(2 * math.pi * k / n)) for k in range(n)], True)
+
+    def line(a0, b0, a1, b1):
+        return ("poly", [P(a0, b0), P(a1, b1)], False)
+
+    h = w / 2
+    out = [rect(-h, 0, h, d)]
+    if model == "generic-bed":
+        pillows = 2 if w >= 140 else 1
+        pw = (w - 30) / pillows
+        for k in range(pillows):
+            out.append(rect(-h + 10 + k * (pw + 10), 8, -h + 10 + k * (pw + 10) + pw, 45))
+        out.append(line(-h, 70, h, 70))  # the turned-down cover
+        out.append(line(h - 40, 70, h, 110))
+    elif model in ("generic-sofa", "generic-armchair"):
+        arm = 18 if model == "generic-sofa" else 15
+        out += [line(-h, 22, h, 22), line(-h + arm, 22, -h + arm, d), line(h - arm, 22, h - arm, d)]
+        if model == "generic-sofa":
+            out += [line(-h + arm + (w - 2 * arm) / 3, 22, -h + arm + (w - 2 * arm) / 3, d - 5),
+                    line(-h + arm + 2 * (w - 2 * arm) / 3, 22, -h + arm + 2 * (w - 2 * arm) / 3, d - 5)]
+    elif model == "generic-wardrobe":
+        out += [line(-h, 0, h, d), line(-h, d, h, 0)]
+    elif model == "generic-tv-unit":
+        out.append(rect(-h + 5, 5, h - 5, d - 5))
+    elif model == "generic-bookcase":
+        out.append(line(-h, d / 2, h, d / 2))
+    elif model == "generic-toilet":
+        out = [rect(-19, 0, 19, 18), ellipse(0, 18 + 24, 17, 24)]
+    elif model == "generic-washbasin":
+        out.append(ellipse(0, d / 2 + 2, w / 2 - 8, d / 2 - 8))
+    elif model == "generic-bathtub":
+        out += [rect(-h + 6, 6, h - 6, d - 6), ellipse(h - 20, d / 2, 3, 3, 10)]
+    elif model == "generic-kitchen-base":
+        for k in range(1, int(w // 60)):
+            out.append(line(-h + 60 * k, 0, -h + 60 * k, d))
+        out += [rect(-h + 68, 8, -h + 112, 50), ellipse(-h + 90, 29, 15, 14)]  # the sink
+        for a, b in ((h - 45, 18), (h - 15, 18), (h - 45, 42), (h - 15, 42)):  # the hob
+            out.append(ellipse(a, b, 8, 8, 12))
+    elif model == "generic-dining-table":
+        pass
+    elif model == "generic-desk":
+        out.append(line(-h + 5, 5, -h + 45, 5))
+    elif model in ("generic-chair", "generic-office-chair"):
+        out = [rect(-20, 0, 20, 8), rect(-18, 8, 18, 40)]
+    elif model == "generic-nightstand":
+        out.append(rect(-h + 5, 5, h - 5, d - 5))
+    return out
 
 
 def solid_pieces(walls, openings):
@@ -259,7 +425,7 @@ class Raster:
 # ---------- styles ----------
 
 
-def draw_plan(canvas, walls, openings, rooms, style, to_page, rnd):
+def draw_plan(canvas, walls, openings, rooms, furniture, style, to_page, rnd):
     """Draws the flat on a canvas in page units. to_page maps plan cm to page units."""
     rects = solid_pieces(walls, openings)
     tp = lambda p: to_page(p[0], p[1])
@@ -267,7 +433,7 @@ def draw_plan(canvas, walls, openings, rooms, style, to_page, rnd):
     pt_per_cm = math.dist(to_page(0, 0), to_page(100, 0)) / 100
 
     if style == "app":
-        # A grid over the page, coloured rooms and furniture, like an app export.
+        # A grid over the page, coloured rooms and named furniture, like an app export.
         x0, y0 = to_page(-200, -200)
         for k in range(-4, 60):
             canvas.line(to_page(k * 50, -200), to_page(k * 50, 1600), (225, 228, 232), 0.2)
@@ -275,11 +441,14 @@ def draw_plan(canvas, walls, openings, rooms, style, to_page, rnd):
         palette = [(250, 240, 222), (238, 246, 230), (243, 232, 246), (230, 238, 250), (228, 245, 243)]
         for n, (rx0, ry0, rx1, ry1) in enumerate(rooms):
             canvas.poly(rect_pts((rx0, ry0, rx1, ry1)), fill=palette[n % len(palette)])
-            for _ in range(rnd.randrange(1, 3)):
-                fw, fd = rnd.randrange(40, 160), rnd.randrange(40, 90)
-                fx = rnd.uniform(rx0 + 30, max(rx0 + 31, rx1 - 30 - fw))
-                fy = rnd.uniform(ry0 + 30, max(ry0 + 31, ry1 - 30 - fd))
-                canvas.poly(rect_pts((fx, fy, fx + fw, fy + fd)), fill=rnd.choice([(184, 160, 130), (160, 180, 200), (150, 200, 160), (140, 140, 150)]), stroke=(60, 60, 60), width=0.3)
+        colours = [(184, 160, 130), (160, 180, 200), (150, 200, 160), (170, 150, 190), (150, 190, 200)]
+        for piece in furniture:
+            model, cx, cy, rot, w, d = piece
+            corners = footprint(piece)
+            canvas.poly([tp(q) for q in corners], fill=colours[sum(map(ord, model)) % len(colours)], stroke=(60, 60, 60), width=0.3)
+            if model not in ("generic-chair", "generic-office-chair", "generic-nightstand"):
+                name = rnd.choice(LABELS.get(model, ["Furniture"]))
+                canvas.text(tp((cx - len(name) * 4.5, cy + 4)), name, size=7)
 
     if style in ("poche", "app", "scan"):
         color = (45, 45, 48) if style == "app" else (0, 0, 0)
@@ -299,6 +468,13 @@ def draw_plan(canvas, walls, openings, rooms, style, to_page, rnd):
                     s = min(w - max(k, 0), h - max(-k, 0))
                     if s > 0:
                         canvas.line(tp(a), tp((a[0] + s, a[1] + s)), (0, 0, 0), 0.25)
+
+    # CAD furniture symbols: green on CAD drawings with coloured layers, black otherwise.
+    if style != "app":
+        ink = (40, 150, 60) if style in ("outline", "hatch") else (0, 0, 0)
+        for piece in furniture:
+            for _, pts, closed in piece_outline(piece):
+                canvas.poly([tp(q) for q in pts], stroke=ink, width=0.2, close=closed)
 
     blue = (40, 90, 200) if style in ("outline", "hatch") else (0, 0, 0)
     for o in openings:
@@ -375,6 +551,7 @@ def main(args):
         for seed in range(1, per_style + 1):
             rnd = random.Random(f"{name}-{seed}")
             walls, openings, rooms = make_flat(rnd)
+            furniture = furnish(walls, openings, rooms, random.Random(f"{name}-{seed}-furniture"))
             W, H = walls[0][2], walls[1][3]
             rot = rnd.choice(rotations)
             turn = rotate_about(W / 2, H / 2, rot)
@@ -386,7 +563,7 @@ def main(args):
                 page_h = (H + 2 * margin) * PT_PER_CM
                 to_page = lambda x, y: tuple((v + margin) * PT_PER_CM for v in turn(x, y))
                 canvas = Pdf(page_w, page_h)
-                draw_plan(canvas, walls, openings, rooms, style, to_page, rnd)
+                draw_plan(canvas, walls, openings, rooms, furniture, style, to_page, rnd)
                 canvas.save(OUT / file)
                 # The importer maps 1 pt to CM_PER_PT cm, measured from the top-left corner.
                 to_import = lambda x, y: tuple(v * CM_PER_PT for v in to_page(x, y))
@@ -394,7 +571,7 @@ def main(args):
                 px_per_cm = rnd.choice([1.5, 2, 2.5])
                 to_page = lambda x, y: tuple((v + margin) for v in turn(x, y))  # page unit: 1 cm
                 canvas = Raster((W + 2 * margin) * px_per_cm, (H + 2 * margin) * px_per_cm, px_per_cm)
-                draw_plan(canvas, walls, openings, rooms, style, to_page, rnd)
+                draw_plan(canvas, walls, openings, rooms, furniture, style, to_page, rnd)
                 img = canvas.img
                 if style == "scan":
                     img = img.filter(ImageFilter.GaussianBlur(0.9))
@@ -418,9 +595,16 @@ def main(args):
                 a, b, _, _ = opening_geometry(walls, o)
                 ca = to_import((a[0] + b[0]) / 2, (a[1] + b[1]) / 2)
                 truth_openings.append({"kind": o[3], "center": {"x": ca[0], "y": ca[1]}, "width": math.dist(a, b) * scale})
+            truth_furniture = []
+            for model, cx, cy, frot, w, d in furniture:
+                c = to_import(cx, cy)
+                # The back direction after the page's own rotation, as an app rotation angle.
+                back = to_import(cx + math.sin(math.radians(frot)), cy - math.cos(math.radians(frot)))
+                angle = math.degrees(math.atan2(back[0] - c[0], -(back[1] - c[1]))) % 360
+                truth_furniture.append({"model": model, "center": {"x": c[0], "y": c[1]}, "rotation": angle, "width": w, "depth": d})
             manifest.append({"file": file, "style": name, "rotation": rot, "scale": scale,
-                             "walls": truth_walls, "openings": truth_openings})
-            print(f"{file:22} {len(walls):3} walls {len(openings):3} openings  rotation {rot}")
+                             "walls": truth_walls, "openings": truth_openings, "furniture": truth_furniture})
+            print(f"{file:22} {len(walls):3} walls {len(openings):3} openings {len(furniture):3} furniture  rotation {rot}")
     (OUT / "manifest.json").write_text(json.dumps(manifest, indent=1), encoding="utf-8")
     print(f"{len(manifest)} plans in {OUT}")
 

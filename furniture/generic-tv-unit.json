@@ -1,0 +1,71 @@
+{
+ "size": [
+  "$width",
+  40,
+  50
+ ],
+ "category": "storage",
+ "colors": {
+  "main": "#3b3b3b",
+  "plinth": "#2a2a2a",
+  "front": "#454545"
+ },
+ "generic": {
+  "name": "TV unit",
+  "kind": "tv-unit",
+  "long": "width"
+ },
+ "params": {
+  "width": {
+   "type": "number",
+   "default": 160,
+   "label": "Width (cm)",
+   "min": 60,
+   "max": 300
+  }
+ },
+ "parts": [
+  {
+   "box": [
+    2,
+    2,
+    0,
+    "$W - 4",
+    36,
+    8
+   ],
+   "color": "$plinth",
+   "name": "plinth"
+  },
+  {
+   "box": [
+    0,
+    0,
+    8,
+    "$W",
+    39,
+    42
+   ],
+   "color": "$main",
+   "name": "body"
+  },
+  {
+   "box": [
+    2,
+    39,
+    10,
+    "$W - 4",
+    1,
+    36
+   ],
+   "color": "$front",
+   "name": "fronts"
+  }
+ ],
+ "surfaces": [
+  {
+   "z": 50,
+   "label": "top"
+  }
+ ]
+}

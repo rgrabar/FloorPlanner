@@ -1,0 +1,138 @@
+{
+ "size": [
+  "$width",
+  30,
+  200
+ ],
+ "category": "storage",
+ "colors": {
+  "main": "#f0eee8",
+  "back": "#e3e0d8"
+ },
+ "generic": {
+  "name": "Bookcase",
+  "kind": "bookcase",
+  "long": "width"
+ },
+ "params": {
+  "width": {
+   "type": "number",
+   "default": 80,
+   "label": "Width (cm)",
+   "min": 30,
+   "max": 300
+  },
+  "shelves": {
+   "type": "list",
+   "default": [
+    45,
+    85,
+    125,
+    165
+   ],
+   "label": "Shelf heights (cm)"
+  }
+ },
+ "parts": [
+  {
+   "box": [
+    0,
+    0,
+    0,
+    2,
+    30,
+    200
+   ],
+   "color": "$main",
+   "name": "left side"
+  },
+  {
+   "box": [
+    "$W - 2",
+    0,
+    0,
+    2,
+    30,
+    200
+   ],
+   "color": "$main",
+   "name": "right side"
+  },
+  {
+   "box": [
+    2,
+    0,
+    198,
+    "$W - 4",
+    30,
+    2
+   ],
+   "color": "$main",
+   "name": "top"
+  },
+  {
+   "box": [
+    2,
+    0,
+    0,
+    "$W - 4",
+    30,
+    8
+   ],
+   "color": "$main",
+   "name": "bottom"
+  },
+  {
+   "box": [
+    2,
+    0,
+    8,
+    "$W - 4",
+    1,
+    190
+   ],
+   "color": "$back",
+   "name": "back"
+  },
+  {
+   "box": [
+    2,
+    1,
+    "$v - 2",
+    "$W - 4",
+    29,
+    2
+   ],
+   "color": "$main",
+   "name": "shelf",
+   "each": "shelves"
+  }
+ ],
+ "surfaces": [
+  {
+   "z": 8,
+   "area": [
+    2,
+    1,
+    "$W - 4",
+    29
+   ],
+   "label": "bottom"
+  },
+  {
+   "each": "shelves",
+   "z": "$v",
+   "area": [
+    2,
+    1,
+    "$W - 4",
+    29
+   ],
+   "label": "shelf $n"
+  },
+  {
+   "z": 200,
+   "label": "top"
+  }
+ ]
+}

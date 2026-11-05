@@ -1,0 +1,55 @@
+{
+ "size": [
+  "$width",
+  "$depth",
+  "$height"
+ ],
+ "category": "other",
+ "colors": {
+  "main": "#cdbfa8"
+ },
+ "generic": {
+  "name": "Furniture (box)",
+  "kind": "box",
+  "long": "width"
+ },
+ "params": {
+  "width": {
+   "type": "number",
+   "default": 80,
+   "label": "Width (cm)",
+   "min": 10,
+   "max": 500
+  },
+  "depth": {
+   "type": "number",
+   "default": 50,
+   "label": "Depth (cm)",
+   "min": 10,
+   "max": 300
+  },
+  "height": {
+   "type": "number",
+   "default": 80,
+   "label": "Height (cm)",
+   "min": 5,
+   "max": 300
+  }
+ },
+ "parts": [
+  {
+   "box": [
+    0,
+    0,
+    0,
+    "$W",
+    "$D",
+    "$H"
+   ],
+   "color": "$main",
+   "name": "box",
+   "radius": 1
+  }
+ ],
+ "surfaces": []
+}

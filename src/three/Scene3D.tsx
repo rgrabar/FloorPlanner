@@ -3,7 +3,9 @@ import { Canvas, useFrame, useThree } from '@react-three/fiber'
 import { useEffect, useMemo, useRef } from 'react'
 import * as THREE from 'three'
 import { create } from 'zustand'
-import type { Background, Plan } from '../model/types'
+import { FurnitureMesh } from '../furniture/FurnitureMesh'
+import { modelOf } from '../furniture/placement'
+import type { Background, PlacedFurniture, Plan } from '../model/types'
 import { useStore } from '../store/store'
 import { NumberField } from '../ui/NumberField'
 import { buildingBounds, buildWalls, bumpsIntoWall, M } from './buildings'
@@ -49,6 +51,9 @@ export default function Scene3D() {
         <Lights size={c.size} />
         <group position={[-c.x, 0, -c.z]}>
           <Walls plan={plan} center={c} fade={view.camera === 'orbit'} />
+          {plan.furniture.map((f) => (
+            <Piece key={f.id} item={f} />
+          ))}
           {view.planOnFloor && plan.background && <PlanOnFloor bg={plan.background} />}
         </group>
         {/* Floor under the building, and the ground around it. */}
@@ -160,6 +165,20 @@ function Walls({ plan, center, fade }: { plan: Plan; center: Center; fade: boole
         </group>
       ))}
     </>
+  )
+}
+
+/** A piece of furniture: centred on its plan position and turned (plan angles run clockwise seen from above). */
+function Piece({ item }: { item: PlacedFurniture }) {
+  const model = modelOf(item)
+  if (!model) return null
+  const [w, d] = model.size
+  return (
+    <group position={[item.x * M, 0, item.y * M]} rotation={[0, (-item.rotation * Math.PI) / 180, 0]}>
+      <group position={[(-w / 2) * M, 0, (-d / 2) * M]}>
+        <FurnitureMesh model={model} />
+      </group>
+    </group>
   )
 }
 

@@ -33,6 +33,17 @@ export interface Opening {
   sill: number // distance from floor to the bottom of the opening
 }
 
+/** A piece of furniture standing in the plan. */
+export interface PlacedFurniture {
+  id: string
+  model: string // a furniture/ file name, e.g. "generic-sofa"
+  x: number // centre, cm
+  y: number
+  rotation: number // degrees; 0 = the front faces down the plan (+y)
+  values?: Record<string, number | string | number[]> // the model's options (width, depth...)
+  label?: string // the plan's own text it was recognised from
+}
+
 export interface Room {
   name?: string
   points: Vec2[]
@@ -96,4 +107,7 @@ export interface Plan {
   suggestedWalls: Wall[]
   suggestedOpenings: Opening[]
   rooms: Room[]
+  furniture: PlacedFurniture[]
+  // Furniture recognised on the floorplan, waiting to be accepted.
+  suggestedFurniture: PlacedFurniture[]
 }

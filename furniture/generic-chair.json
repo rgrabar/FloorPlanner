@@ -1,0 +1,94 @@
+{
+ "size": [
+  45,
+  50,
+  90
+ ],
+ "category": "seating",
+ "colors": {
+  "main": "#c49a6c",
+  "legs": "#a07a52"
+ },
+ "generic": {
+  "name": "Chair",
+  "kind": "chair",
+  "long": "width"
+ },
+ "parts": [
+  {
+   "box": [
+    3,
+    6,
+    0,
+    3,
+    3,
+    43
+   ],
+   "color": "$legs",
+   "name": "leg"
+  },
+  {
+   "box": [
+    39,
+    6,
+    0,
+    3,
+    3,
+    43
+   ],
+   "color": "$legs",
+   "name": "leg"
+  },
+  {
+   "box": [
+    3,
+    44,
+    0,
+    3,
+    3,
+    43
+   ],
+   "color": "$legs",
+   "name": "leg"
+  },
+  {
+   "box": [
+    39,
+    44,
+    0,
+    3,
+    3,
+    43
+   ],
+   "color": "$legs",
+   "name": "leg"
+  },
+  {
+   "box": [
+    2,
+    4,
+    43,
+    41,
+    44,
+    4
+   ],
+   "color": "$main",
+   "name": "seat",
+   "radius": 1
+  },
+  {
+   "box": [
+    2,
+    2,
+    47,
+    41,
+    3,
+    43
+   ],
+   "color": "$main",
+   "name": "back",
+   "radius": 1
+  }
+ ],
+ "surfaces": []
+}

@@ -36,9 +36,14 @@ Then open http://localhost:5173.
 7. **Select** (V): click a wall, door or window to edit its sizes in the side panel. Drag a wall to move it,
    its square ends to reshape it (joined walls follow), and doors/windows to slide them. Double-click a wall to
    split it. Delete removes the selection.
-8. **Undo/Redo:** Ctrl+Z and Ctrl+Y (or Ctrl+Shift+Z).
+8. **Furniture:** furniture drawn on the plan is found when it's opened and shown in purple (see
+   *How furniture is found* below). Click a piece to check it, change its model or sizes, or delete
+   it; Enter or **Accept all furniture** accepts. Add more with the list and **Add** in the side panel.
+   Drag a piece to move it; R turns it 90° (Shift+R the other way). The thick edge is its front.
+   Accepted furniture shows in 3D.
+9. **Undo/Redo:** Ctrl+Z and Ctrl+Y (or Ctrl+Shift+Z).
 
-9. **3D:** switch between **Plan** and **3D** at the top left. In 3D:
+10. **3D:** switch between **Plan** and **3D** at the top left. In 3D:
    - **Orbit:** drag to turn around the model, right-drag to move, wheel to zoom. Walls between you and the
      middle of the view fade out so you can see inside.
    - **Top:** straight down, without perspective.
@@ -123,6 +128,33 @@ Format details beyond PROMPT.md 4C:
 - Expressions: numbers, 'strings', `$vars` (`$W`, `$D`, `$H` and parameters), `+ - * /`, `( )`,
   `== != < > <= >=`, `&& || !`. The same rules are in `src/furniture/expr.ts` and `tools/furniture.py`.
 
+## Everyday furniture models
+
+Besides the IKEA models, `furniture/generic-*.json` has the furniture every flat has, in standard
+sizes: bed, sofa, armchair, wardrobe, nightstand, dining table, chair, desk, office chair,
+coffee table, TV unit, bookcase, kitchen units, kitchen sink, stove, fridge, washing machine,
+toilet, washbasin, bathtub, shower and a plain box. Their widths and depths (and a bed's mattress
+size) are options, so a found piece takes the size it's drawn at. See them all at
+http://localhost:5173/?gallery=generic.
+
+## How furniture is found
+
+When a plan is opened, every drawn object becomes a shape: a group of touching lines on a layer
+that isn't walls (in PDFs, DXF, SVG), a solid coloured patch (app exports), or a group of thin
+lines (pictures). Details drawn inside a piece without touching it (a pillow, a sink) belong to it.
+
+- **Named pieces:** words written on or in the shape name it: the PDF's own text, or for pictures
+  the patch's name read with OCR (Tesseract, loaded only when needed). English, Croatian, German,
+  Dutch and French words and IKEA product names are known; an IKEA name with its own model
+  (BILLY, KALLAX…) gets that model.
+- **Unnamed symbols:** by real size and what's drawn inside: a wardrobe's X, a sofa's back and
+  arms, a bed's pillow end, a bathtub's inner outline, a toilet's tank, a basin's bowl, kitchen
+  units divided into cabinets. A desk with its chair pushed in is split into both, and small
+  shapes beside a table or desk become its chairs.
+- Each piece is turned so its back is against the nearest wall (a bed's head, a toilet's tank),
+  and sized to the drawing. Text, room-number circles, dimension marks and door swings are left
+  out: layers where few shapes look like furniture aren't used.
+
 ## How walls are found
 
 Two detectors run on every plan, and the better result is kept:
@@ -138,18 +170,24 @@ Gaps between wall pieces, and gaps between a wall's end and another wall, are ju
 picture: a quarter-circle swing or leaf from a jamb makes a door, a line running along inside the
 wall makes a window, wall drawn in pieces is joined, and an empty gap is left open.
 
-### Testing wall detection
+For pictures without a scale, the scale is estimated from the doors (nearly every inner door is
+70–90 cm wide), or from the wall thickness when there are too few doors. In outlined pictures,
+short "walls" of an odd thickness or hanging off a wall by one end are dropped: they're usually
+furniture outlines.
+
+### Testing wall and furniture detection
 
 ```bash
 npm run bench
 ```
 
-That draws 40 random flats in 8 styles (filled, merged, outlined and hatched PDFs, app exports with
-grids and furniture, clean pictures, outlined pictures, tilted noisy scans) into `bench/`, with the
-exact walls and openings of each. Then open http://localhost:5173/?bench (with `npm run dev`
+That draws 40 random furnished flats in 8 styles (filled, merged, outlined and hatched PDFs, app
+exports with grids and named furniture, clean pictures, outlined pictures, tilted noisy scans) into
+`bench/`, with the exact walls, openings and furniture of each. Then open http://localhost:5173/?bench (with `npm run dev`
 running): it scores the detection against them and also runs the real plans in `samples/`. An
 overlay of each result is saved to `bench/out/`: true walls in green, found walls in blue,
-doors orange, windows cyan. Filter with `?bench=pdf-app`, or force one detector with `&use=picture`
+doors orange, windows cyan, true furniture as green rings, found furniture as purple dots with an
+arrow to its back. Filter with `?bench=pdf-app`, or force one detector with `&use=picture`
 or `&use=lines`.
 
 ## Test files
@@ -170,10 +208,11 @@ src/editor/    2D canvas, calibrate dialog
 src/store/     app state and autosave
 src/ui/        toolbar and side panel
 src/project/   save/load project files
-src/detect/    wall detection: from pictures (raster.ts), choosing the best result (planFromImport.ts)
+src/detect/    wall detection: from pictures (raster.ts), choosing the best result (planFromImport.ts);
+               furniture: recognition (furniture.ts), shapes in pictures (furniturePicture.ts), OCR (labels.ts)
 src/bench/     the ?bench test page and its scoring
 src/three/     3D view of the plan
-src/furniture/ furniture model format, 3D rendering, model preview page
+src/furniture/ furniture model format, 3D rendering, placing in the plan, model preview and gallery pages
 furniture/     furniture models (JSON)
 tools/         convert.py (DWG → DXF), make_samples.py, make_bench.py, ikea.py, furniture.py, check_model.py
 bench/         generated test plans and bench results (not in git)

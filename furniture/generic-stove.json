@@ -1,0 +1,140 @@
+{
+ "size": [
+  60,
+  60,
+  90
+ ],
+ "category": "kitchen",
+ "colors": {
+  "main": "#e7e7e7",
+  "plinth": "#cfcfcf",
+  "glass": "#1f1f1f",
+  "handle": "#9a9a9a",
+  "ring": "#5a5a5a"
+ },
+ "generic": {
+  "name": "Stove",
+  "kind": "stove",
+  "long": "width"
+ },
+ "clearance": {
+  "front": 90
+ },
+ "parts": [
+  {
+   "box": [
+    0,
+    5,
+    0,
+    60,
+    52,
+    10
+   ],
+   "color": "$plinth",
+   "name": "plinth"
+  },
+  {
+   "box": [
+    0,
+    0,
+    10,
+    60,
+    57,
+    76
+   ],
+   "color": "$main",
+   "name": "body"
+  },
+  {
+   "box": [
+    3,
+    57,
+    15,
+    54,
+    2,
+    55
+   ],
+   "color": "$glass",
+   "name": "oven door"
+  },
+  {
+   "box": [
+    8,
+    59,
+    66,
+    44,
+    1,
+    2
+   ],
+   "color": "$handle",
+   "mat": "metal",
+   "name": "handle"
+  },
+  {
+   "box": [
+    0,
+    0,
+    86,
+    60,
+    60,
+    3.5
+   ],
+   "color": "$glass",
+   "name": "cooktop"
+  },
+  {
+   "cyl": [
+    16,
+    16,
+    89.5,
+    7,
+    0.5
+   ],
+   "axis": "z",
+   "color": "$ring",
+   "name": "burner"
+  },
+  {
+   "cyl": [
+    44,
+    16,
+    89.5,
+    7,
+    0.5
+   ],
+   "axis": "z",
+   "color": "$ring",
+   "name": "burner"
+  },
+  {
+   "cyl": [
+    16,
+    44,
+    89.5,
+    7,
+    0.5
+   ],
+   "axis": "z",
+   "color": "$ring",
+   "name": "burner"
+  },
+  {
+   "cyl": [
+    44,
+    44,
+    89.5,
+    7,
+    0.5
+   ],
+   "axis": "z",
+   "color": "$ring",
+   "name": "burner"
+  }
+ ],
+ "surfaces": [
+  {
+   "z": 90,
+   "label": "cooktop"
+  }
+ ]
+}

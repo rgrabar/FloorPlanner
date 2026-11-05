@@ -1,0 +1,49 @@
+{
+ "size": [
+  45,
+  40,
+  55
+ ],
+ "category": "storage",
+ "colors": {
+  "main": "#c9a77c",
+  "front": "#d6b78f"
+ },
+ "generic": {
+  "name": "Nightstand",
+  "kind": "nightstand",
+  "long": "width"
+ },
+ "parts": [
+  {
+   "box": [
+    0,
+    0,
+    0,
+    45,
+    39,
+    55
+   ],
+   "color": "$main",
+   "name": "body"
+  },
+  {
+   "box": [
+    3,
+    39,
+    30,
+    39,
+    1,
+    20
+   ],
+   "color": "$front",
+   "name": "drawer front"
+  }
+ ],
+ "surfaces": [
+  {
+   "z": 55,
+   "label": "top"
+  }
+ ]
+}

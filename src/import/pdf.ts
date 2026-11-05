@@ -42,10 +42,22 @@ export async function importPdf(file: File, pageIndex: number): Promise<ImportRe
       b: { x: l.b.x * cmPerPx, y: l.b.y * cmPerPx },
     }))
 
+    // Text: where each piece of writing's middle is, in plan cm.
+    const texts: { text: string; at: Vec2 }[] = []
+    const content = await page.getTextContent()
+    for (const item of content.items) {
+      if (!('str' in item) || !item.str.trim()) continue
+      const m = pdfjs.Util.transform(viewport.transform, item.transform)
+      const x = m[4] + (item.width * scale) / 2
+      const y = m[5] - (item.height * scale) / 2
+      texts.push({ text: item.str.trim(), at: { x: x * cmPerPx, y: y * cmPerPx } })
+    }
+
     return {
       ...emptyResult('pdf'),
       background: await makeBackground(canvas.toDataURL('image/png'), cmPerPx),
       lines,
+      texts,
       parts,
       note: lines.length
         ? `Found ${lines.length} vector lines. Scale assumed 1:100. Calibrate to be sure.`

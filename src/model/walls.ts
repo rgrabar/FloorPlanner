@@ -5,7 +5,7 @@ import type { Opening, Plan, Vec2, Wall } from './types'
 
 const SAME_POINT = 0.5 // cm: wall ends closer than this count as joined
 
-export type Selection = { kind: 'wall' | 'suggestion' | 'opening'; id: string } | null
+export type Selection = { kind: 'wall' | 'suggestion' | 'opening' | 'furniture'; id: string } | null
 
 export const wallLength = (w: Wall) => dist(w.a, w.b)
 
@@ -174,5 +174,12 @@ export function deleteSelection(plan: Plan, sel: Selection): Plan {
   if (!sel) return plan
   if (sel.kind === 'wall') return deleteWall(plan, sel.id)
   if (sel.kind === 'opening') return deleteOpening(plan, sel.id)
+  if (sel.kind === 'furniture') {
+    return {
+      ...plan,
+      furniture: plan.furniture.filter((f) => f.id !== sel.id),
+      suggestedFurniture: plan.suggestedFurniture.filter((f) => f.id !== sel.id),
+    }
+  }
   return deleteSuggestion(plan, sel.id)
 }

@@ -1,0 +1,88 @@
+{
+ "size": [
+  "$width",
+  "$depth",
+  200
+ ],
+ "category": "bathroom",
+ "colors": {
+  "main": "#fbfbfb",
+  "glass": "#cfe6f2",
+  "steel": "#c8cbcf"
+ },
+ "generic": {
+  "name": "Shower",
+  "kind": "shower",
+  "long": "width"
+ },
+ "params": {
+  "width": {
+   "type": "number",
+   "default": 90,
+   "label": "Width (cm)",
+   "min": 70,
+   "max": 160
+  },
+  "depth": {
+   "type": "number",
+   "default": 90,
+   "label": "Depth (cm)",
+   "min": 70,
+   "max": 120
+  }
+ },
+ "parts": [
+  {
+   "box": [
+    0,
+    0,
+    0,
+    "$W",
+    "$D",
+    6
+   ],
+   "color": "$main",
+   "name": "tray"
+  },
+  {
+   "box": [
+    0,
+    "$D - 1",
+    6,
+    "$W",
+    1,
+    194
+   ],
+   "color": "$glass",
+   "mat": "glass",
+   "name": "front glass"
+  },
+  {
+   "box": [
+    "$W - 1",
+    0,
+    6,
+    1,
+    "$D - 1",
+    194
+   ],
+   "color": "$glass",
+   "mat": "glass",
+   "name": "side glass"
+  },
+  {
+   "cyl": [
+    10,
+    3,
+    6,
+    1.5,
+    190
+   ],
+   "axis": "z",
+   "color": "$steel",
+   "mat": "metal",
+   "name": "riser"
+  }
+ ],
+ "surfaces": []
+}

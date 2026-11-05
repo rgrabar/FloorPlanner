@@ -1,0 +1,84 @@
+{
+ "size": [
+  "$width",
+  45,
+  97
+ ],
+ "category": "bathroom",
+ "colors": {
+  "main": "#fbfbfb",
+  "cabinet": "#e2ddd3",
+  "bowl": "#e9eef2",
+  "steel": "#c8cbcf"
+ },
+ "generic": {
+  "name": "Washbasin",
+  "kind": "washbasin",
+  "long": "width"
+ },
+ "clearance": {
+  "front": 60
+ },
+ "params": {
+  "width": {
+   "type": "number",
+   "default": 60,
+   "label": "Width (cm)",
+   "min": 40,
+   "max": 140
+  }
+ },
+ "parts": [
+  {
+   "box": [
+    2,
+    1,
+    0,
+    "$W - 4",
+    40,
+    80
+   ],
+   "color": "$cabinet",
+   "name": "vanity"
+  },
+  {
+   "box": [
+    0,
+    0,
+    80,
+    "$W",
+    45,
+    5
+   ],
+   "color": "$main",
+   "name": "basin top",
+   "radius": 2
+  },
+  {
+   "box": [
+    8,
+    10,
+    84.5,
+    "$W - 16",
+    28,
+    0.5
+   ],
+   "color": "$bowl",
+   "name": "bowl"
+  },
+  {
+   "cyl": [
+    "$W / 2",
+    4,
+    85,
+    1.2,
+    12
+   ],
+   "axis": "z",
+   "color": "$steel",
+   "mat": "metal",
+   "name": "tap"
+  }
+ ],
+ "surfaces": []
+}

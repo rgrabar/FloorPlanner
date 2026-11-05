@@ -42,6 +42,9 @@ export interface ModelSpec {
   clearance?: { front?: number; back?: number; left?: number; right?: number }
   // items: every article to buy (repeat an article for each piece); combination: the set's own number.
   ikea?: { name: string; type: string; items: string[]; variant?: string; combination?: string }
+  // Everyday furniture in standard sizes. kind: what it is (sofa, bed...); long: which of the model's
+  // own sides (width or depth) is the longer one when fitted to a drawn rectangle.
+  generic?: { name: string; kind: string; long: 'width' | 'depth' }
   params?: Record<string, ParamSpec>
   parts: PartSpec[]
   surfaces?: SurfaceSpec[]

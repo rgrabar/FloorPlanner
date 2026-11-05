@@ -1,3 +1,6 @@
+import { useState } from 'react'
+import { acceptFurniture, addFurniture, displayName } from '../furniture/placement'
+import { MODELS } from '../furniture/model'
 import { formatLength } from '../model/geometry'
 import { planBounds } from '../model/plan'
 import type { LayerRole, SourceFormat } from '../model/types'
@@ -95,6 +98,8 @@ export function SidePanel() {
         )}
       </section>
 
+      <FurnitureSection />
+
       <section>
         <h3>Floorplan</h3>
         <p className="filename">{src?.fileName ?? 'Untitled'}</p>
@@ -169,5 +174,65 @@ export function SidePanel() {
         </section>
       )}
     </aside>
+  )
+}
+
+// Everyday furniture first, then IKEA models.
+const ADDABLE = Object.keys(MODELS).sort((a, b) => {
+  const g = (n: string) => (MODELS[n].generic ? 0 : 1)
+  return g(a) - g(b) || displayName(a).localeCompare(displayName(b))
+})
+
+function FurnitureSection() {
+  const plan = useStore((s) => s.plan)
+  const { edit, select } = useStore.getState()
+  const [choice, setChoice] = useState(ADDABLE.find((n) => n === 'generic-sofa') ?? ADDABLE[0])
+  const suggested = plan.suggestedFurniture.length
+
+  const add = () => {
+    // In the middle of the plan; drag it from there.
+    const b = planBounds(plan)
+    const at = b ? { x: (b.minX + b.maxX) / 2, y: (b.minY + b.maxY) / 2 } : { x: 0, y: 0 }
+    let id = ''
+    edit((p) => {
+      const r = addFurniture(p, choice, at)
+      id = r.id
+      return r.plan
+    })
+    select({ kind: 'furniture', id })
+  }
+
+  return (
+    <section>
+      <h3>Furniture</h3>
+      <p className="muted">{plan.furniture.length} pieces placed.</p>
+      {suggested > 0 && (
+        <>
+          <p className="muted">Found on the plan (purple): {suggested} pieces. Click one to check it, change its model or delete it.</p>
+          <div className="buttons">
+            <button
+              className="primary"
+              onClick={() => {
+                edit((p) => acceptFurniture(p))
+                select(null)
+              }}
+            >
+              Accept all furniture
+            </button>
+            <button onClick={() => edit((p) => ({ ...p, suggestedFurniture: [] }))}>Clear</button>
+          </div>
+        </>
+      )}
+      <div className="buttons">
+        <select value={choice} onChange={(e) => setChoice(e.target.value)} style={{ flex: 1, minWidth: 0 }}>
+          {ADDABLE.map((n) => (
+            <option key={n} value={n}>
+              {displayName(n)}
+            </option>
+          ))}
+        </select>
+        <button onClick={add}>Add</button>
+      </div>
+    </section>
   )
 }

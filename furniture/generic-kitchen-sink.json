@@ -1,0 +1,133 @@
+{
+ "size": [
+  "$width",
+  60,
+  110
+ ],
+ "category": "kitchen",
+ "colors": {
+  "main": "#f4f4f2",
+  "plinth": "#cfcfcf",
+  "handle": "#9a9a9a",
+  "top": "#b8a68e",
+  "steel": "#c8cbcf"
+ },
+ "generic": {
+  "name": "Kitchen sink",
+  "kind": "sink",
+  "long": "width"
+ },
+ "clearance": {
+  "front": 90
+ },
+ "params": {
+  "width": {
+   "type": "number",
+   "default": 80,
+   "label": "Width (cm)",
+   "min": 45,
+   "max": 160
+  }
+ },
+ "parts": [
+  {
+   "box": [
+    0,
+    5,
+    0,
+    "$W",
+    52,
+    10
+   ],
+   "color": "$plinth",
+   "name": "plinth"
+  },
+  {
+   "box": [
+    0,
+    0,
+    10,
+    "$W",
+    57,
+    76
+   ],
+   "color": "$main",
+   "name": "cabinet"
+  },
+  {
+   "box": [
+    1,
+    57,
+    11,
+    "$W - 2",
+    2,
+    74
+   ],
+   "color": "$main",
+   "name": "front"
+  },
+  {
+   "box": [
+    2,
+    59,
+    78,
+    "$W - 4",
+    1,
+    1.5
+   ],
+   "color": "$handle",
+   "mat": "metal",
+   "name": "handle rail"
+  },
+  {
+   "box": [
+    0,
+    0,
+    86,
+    "$W",
+    60,
+    3
+   ],
+   "color": "$top",
+   "name": "worktop"
+  },
+  {
+   "box": [
+    12,
+    8,
+    86,
+    "$W - 24",
+    40,
+    4
+   ],
+   "color": "$steel",
+   "mat": "metal",
+   "name": "basin"
+  },
+  {
+   "cyl": [
+    "$W / 2",
+    5,
+    90,
+    1.5,
+    20
+   ],
+   "axis": "z",
+   "color": "$steel",
+   "mat": "metal",
+   "name": "tap"
+  }
+ ],
+ "surfaces": [
+  {
+   "z": 89,
+   "area": [
+    0,
+    48,
+    "$W",
+    12
+   ],
+   "label": "worktop"
+  }
+ ]
+}

@@ -1,0 +1,99 @@
+{
+ "size": [
+  "$width",
+  "$depth",
+  58
+ ],
+ "category": "bathroom",
+ "colors": {
+  "main": "#fbfbfb",
+  "inside": "#eef3f6"
+ },
+ "generic": {
+  "name": "Bathtub",
+  "kind": "bathtub",
+  "long": "width"
+ },
+ "clearance": {
+  "front": 60
+ },
+ "params": {
+  "width": {
+   "type": "number",
+   "default": 170,
+   "label": "Length (cm)",
+   "min": 120,
+   "max": 200
+  },
+  "depth": {
+   "type": "number",
+   "default": 75,
+   "label": "Width (cm)",
+   "min": 60,
+   "max": 100
+  }
+ },
+ "parts": [
+  {
+   "box": [
+    0,
+    0,
+    0,
+    "$W",
+    6,
+    58
+   ],
+   "color": "$main",
+   "name": "back rim"
+  },
+  {
+   "box": [
+    0,
+    "$D - 6",
+    0,
+    "$W",
+    6,
+    58
+   ],
+   "color": "$main",
+   "name": "front rim"
+  },
+  {
+   "box": [
+    0,
+    6,
+    0,
+    6,
+    "$D - 12",
+    58
+   ],
+   "color": "$main",
+   "name": "left rim"
+  },
+  {
+   "box": [
+    "$W - 6",
+    6,
+    0,
+    6,
+    "$D - 12",
+    58
+   ],
+   "color": "$main",
+   "name": "right rim"
+  },
+  {
+   "box": [
+    6,
+    6,
+    0,
+    "$W - 12",
+    "$D - 12",
+    14
+   ],
+   "color": "$inside",
+   "name": "bottom"
+  }
+ ],
+ "surfaces": []
+}

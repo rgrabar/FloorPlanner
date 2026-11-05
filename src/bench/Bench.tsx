@@ -4,9 +4,9 @@ import { importFile } from '../import'
 import { boundsOf } from '../model/geometry'
 import type { Plan, Vec2 } from '../model/types'
 import { joinedEnds, pointOnWall, wallOutline } from '../model/walls'
-import { scoreDetection, type Score, type Truth } from './score'
+import { scoreDetection, scoreFurniture, type FurnitureScore, type Score, type Truth } from './score'
 
-// Test bench for wall detection: http://localhost:5173/?bench  (or ?bench=pdf-app to filter)
+// Test bench for wall and furniture detection: http://localhost:5173/?bench  (or ?bench=pdf-app to filter)
 // Runs the app's own import and detection on every test plan in bench/ (made by
 // tools/make_bench.py, with known answers) and on the real plans in samples/, scores it,
 // and saves an overlay picture of each to bench/out/ (dev server only).
@@ -20,6 +20,7 @@ interface Row {
   walls: number
   openings: number
   score?: Score
+  furniture?: FurnitureScore
   scaleError?: number // estimated scale vs the true one (0 = exact)
   error?: string
 }
@@ -64,8 +65,13 @@ export default function Bench() {
           if (c.truth) {
             row.score = scoreDetection(c.truth, walls, openings)
             if (bg0 && bg1) row.scaleError = k / c.truth.scale - 1
+            if (c.truth.furniture) {
+              const pieces = plan.suggestedFurniture.map((f) => ({ ...back(f), model: f.model, rotation: f.rotation }))
+              row.furniture = scoreFurniture(c.truth.furniture, pieces, c.truth.scale)
+            }
           }
-          await save(`${c.file}.png`, await overlay({ ...plan, background: bg0, suggestedWalls: walls, suggestedOpenings: openings }, c.truth))
+          const furniture = plan.suggestedFurniture.map((f) => ({ ...f, ...back(f) }))
+          await save(`${c.file}.png`, await overlay({ ...plan, background: bg0, suggestedWalls: walls, suggestedOpenings: openings, suggestedFurniture: furniture }, c.truth))
         } catch (e) {
           row.error = e instanceof Error ? e.message : String(e)
         }
@@ -83,10 +89,15 @@ export default function Bench() {
   const scored = rows.filter((r) => r.score)
   const styles = [...new Set(scored.map((r) => r.style))]
   const avg = (rs: Row[], f: (s: Score) => number) => rs.reduce((t, r) => t + f(r.score!), 0) / rs.length
+  // Furniture is counted over all pieces of all plans, not averaged per plan.
+  const share = (rs: Row[], part: (f: FurnitureScore) => number, whole: (f: FurnitureScore) => number) => {
+    const w = rs.reduce((t, r) => t + (r.furniture ? whole(r.furniture) : 0), 0)
+    return w ? pct(rs.reduce((t, r) => t + (r.furniture ? part(r.furniture) : 0), 0) / w) : ''
+  }
 
   return (
     <div style={{ padding: 16, overflow: 'auto', height: '100%' }}>
-      <h2>Wall detection bench</h2>
+      <h2>Wall and furniture detection bench</h2>
       <p>{status}</p>
       {scored.length > 0 && (
         <table className="bench">
@@ -94,6 +105,7 @@ export default function Bench() {
             <tr>
               <th>Style</th><th>Plans</th><th>Walls found</th><th>Walls real</th><th>Missed walls</th><th>Offset</th>
               <th>Thickness</th><th>Doors/windows found</th><th>D/W real</th><th>Kind mix-ups</th><th>Scale error</th>
+              <th>Furniture found</th><th>Right kind</th><th>Facing right</th><th>Furniture real</th>
             </tr>
           </thead>
           <tbody>
@@ -112,6 +124,10 @@ export default function Bench() {
                   <td>{pct(avg(rs, (s) => s.openingPrecision))}</td>
                   <td>{rs.reduce((t, r) => t + r.score!.kindErrors, 0)}</td>
                   <td>{pct(rs.reduce((t, r) => t + Math.abs(r.scaleError ?? 0), 0) / rs.length)}</td>
+                  <td>{share(rs, (f) => f.found, (f) => f.total)}</td>
+                  <td>{share(rs, (f) => f.rightKind, (f) => f.total)}</td>
+                  <td>{share(rs, (f) => f.facing, (f) => f.rightKind)}</td>
+                  <td>{share(rs, (f) => f.real, (f) => f.detected)}</td>
                 </tr>
               )
             })}
@@ -121,7 +137,7 @@ export default function Bench() {
       <table className="bench">
         <thead>
           <tr>
-            <th>File</th><th>ms</th><th>Walls</th><th>D/W</th><th>Found</th><th>Real</th><th>Missed</th><th>D/W found</th><th>Error</th>
+            <th>File</th><th>ms</th><th>Walls</th><th>D/W</th><th>Found</th><th>Real</th><th>Missed</th><th>D/W found</th><th>Furniture</th><th>Error</th>
           </tr>
         </thead>
         <tbody>
@@ -135,6 +151,7 @@ export default function Bench() {
               <td>{r.score && pct(r.score.wallPrecision)}</td>
               <td>{r.score?.missedWalls}</td>
               <td>{r.score && pct(r.score.openingRecall)}</td>
+              <td>{r.furniture && `${r.furniture.rightKind}/${r.furniture.total} right, ${r.furniture.detected - r.furniture.real} extra`}</td>
               <td className="error-text">{r.error}</td>
             </tr>
           ))}
@@ -231,6 +248,33 @@ async function overlay(plan: Plan, truth?: Truth): Promise<Blob> {
       ctx.lineWidth = 2
       ctx.beginPath()
       ctx.arc(c.x, c.y, 7, 0, Math.PI * 2)
+      ctx.stroke()
+    }
+  }
+  // Furniture: found pieces as purple dots with an arrow to their back and their name, true
+  // pieces as green rings.
+  ctx.font = '11px sans-serif'
+  for (const f of plan.suggestedFurniture) {
+    const c = S(f)
+    const r = (f.rotation * Math.PI) / 180
+    ctx.fillStyle = ctx.strokeStyle = '#7c3aed'
+    ctx.lineWidth = 2
+    ctx.beginPath()
+    ctx.arc(c.x, c.y, 4, 0, Math.PI * 2)
+    ctx.fill()
+    ctx.beginPath()
+    ctx.moveTo(c.x, c.y)
+    ctx.lineTo(c.x + Math.sin(r) * 16, c.y - Math.cos(r) * 16)
+    ctx.stroke()
+    ctx.fillText(f.model.replace('generic-', ''), c.x + 6, c.y + 12)
+  }
+  if (truth?.furniture) {
+    ctx.strokeStyle = '#16a34a'
+    ctx.lineWidth = 2
+    for (const f of truth.furniture) {
+      const c = S(f.center)
+      ctx.beginPath()
+      ctx.arc(c.x, c.y, 9, 0, Math.PI * 2)
       ctx.stroke()
     }
   }

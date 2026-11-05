@@ -1,4 +1,5 @@
 import { useEffect, useReducer, useRef, useState } from 'react'
+import { acceptFurniture, updateFurniture } from '../furniture/placement'
 import { dist, projectOnWall } from '../model/geometry'
 import { planBounds } from '../model/plan'
 import type { Opening, Plan, Vec2, Wall } from '../model/types'
@@ -24,6 +25,7 @@ type Drag =
   | { kind: 'wall'; id: string; last: Vec2; started: boolean }
   | { kind: 'end'; id: string; end: 'a' | 'b'; started: boolean; ignore: Set<string> }
   | { kind: 'opening'; id: string; grab: number; started: boolean }
+  | { kind: 'furniture'; id: string; last: Vec2; started: boolean }
 
 /** Where a new door/window would go for the mouse at `p`, or null when not over a wall. */
 function openingPreview(p: Vec2, plan: Plan, zoom: number, kind: 'door' | 'window', d: DrawDefaults) {
@@ -153,6 +155,14 @@ export function PlanCanvas() {
         const id = s.selection.id
         s.edit((p) => acceptSuggestions(p, [id]))
         s.select({ kind: 'wall', id })
+      } else if (e.key === 'Enter' && s.selection?.kind === 'furniture') {
+        const id = s.selection.id
+        s.edit((p) => acceptFurniture(p, [id]))
+      } else if ((e.key === 'r' || e.key === 'R') && s.selection?.kind === 'furniture') {
+        // R turns the selected piece 90° clockwise, Shift+R anticlockwise.
+        const id = s.selection.id
+        const f = [...s.plan.furniture, ...s.plan.suggestedFurniture].find((x) => x.id === id)
+        if (f) s.edit((p) => updateFurniture(p, id, { rotation: (((f.rotation + (e.shiftKey ? -90 : 90)) % 360) + 360) % 360 }))
       }
     }
     const up = (e: KeyboardEvent) => {
@@ -218,7 +228,10 @@ export function PlanCanvas() {
       }
       if (hit.kind === 'suggestion') return select({ kind: 'suggestion', id: hit.id })
       canvasRef.current!.setPointerCapture(e.pointerId)
-      if (hit.kind === 'end') {
+      if (hit.kind === 'furniture') {
+        select({ kind: 'furniture', id: hit.id })
+        drag.current = { kind: 'furniture', id: hit.id, last: p, started: false }
+      } else if (hit.kind === 'end') {
         // Walls joined at this end move along, so they mustn't be snap targets.
         const at = plan.walls.find((w) => w.id === hit.id)![hit.end]
         const ignore = new Set(plan.walls.filter((w) => dist(w.a, at) < 0.5 || dist(w.b, at) < 0.5).map((w) => w.id))
@@ -306,6 +319,12 @@ export function PlanCanvas() {
       const delta = { x: p.x - d.last.x, y: p.y - d.last.y }
       d.last = p
       mutate((pl) => moveWall(pl, d.id, delta))
+    } else if (d.kind === 'furniture') {
+      const f = [...plan.furniture, ...plan.suggestedFurniture].find((x) => x.id === d.id)
+      if (!f) return
+      const at = { x: f.x + p.x - d.last.x, y: f.y + p.y - d.last.y }
+      d.last = p
+      mutate((pl) => updateFurniture(pl, d.id, at))
     } else {
       const o = plan.openings.find((x) => x.id === d.id)
       const wall: Wall | undefined = o && plan.walls.find((w) => w.id === o.wallId)

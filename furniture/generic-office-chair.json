@@ -1,0 +1,74 @@
+{
+ "size": [
+  60,
+  60,
+  100
+ ],
+ "category": "seating",
+ "colors": {
+  "main": "#3e4a59",
+  "base": "#333333"
+ },
+ "generic": {
+  "name": "Office chair",
+  "kind": "office-chair",
+  "long": "width"
+ },
+ "parts": [
+  {
+   "cyl": [
+    30,
+    30,
+    0,
+    28,
+    3
+   ],
+   "axis": "z",
+   "color": "$base",
+   "mat": "metal",
+   "name": "base"
+  },
+  {
+   "cyl": [
+    30,
+    30,
+    3,
+    3,
+    40
+   ],
+   "axis": "z",
+   "color": "$base",
+   "mat": "metal",
+   "name": "column"
+  },
+  {
+   "box": [
+    7,
+    10,
+    43,
+    46,
+    46,
+    8
+   ],
+   "color": "$main",
+   "mat": "fabric",
+   "name": "seat",
+   "radius": 3
+  },
+  {
+   "box": [
+    10,
+    3,
+    51,
+    40,
+    7,
+    49
+   ],
+   "color": "$main",
+   "mat": "fabric",
+   "name": "back",
+   "radius": 3
+  }
+ ],
+ "surfaces": []
+}

@@ -1,0 +1,100 @@
+{
+ "size": [
+  "$width",
+  "$depth",
+  45
+ ],
+ "category": "table",
+ "colors": {
+  "main": "#d2b48c"
+ },
+ "generic": {
+  "name": "Coffee table",
+  "kind": "coffee-table",
+  "long": "width"
+ },
+ "params": {
+  "width": {
+   "type": "number",
+   "default": 110,
+   "label": "Width (cm)",
+   "min": 40,
+   "max": 200
+  },
+  "depth": {
+   "type": "number",
+   "default": 60,
+   "label": "Depth (cm)",
+   "min": 40,
+   "max": 120
+  }
+ },
+ "parts": [
+  {
+   "box": [
+    0,
+    0,
+    40,
+    "$W",
+    "$D",
+    5
+   ],
+   "color": "$main",
+   "name": "top"
+  },
+  {
+   "box": [
+    3,
+    3,
+    0,
+    4,
+    4,
+    40
+   ],
+   "color": "$main",
+   "name": "leg"
+  },
+  {
+   "box": [
+    "$W - 7",
+    3,
+    0,
+    4,
+    4,
+    40
+   ],
+   "color": "$main",
+   "name": "leg"
+  },
+  {
+   "box": [
+    3,
+    "$D - 7",
+    0,
+    4,
+    4,
+    40
+   ],
+   "color": "$main",
+   "name": "leg"
+  },
+  {
+   "box": [
+    "$W - 7",
+    "$D - 7",
+    0,
+    4,
+    4,
+    40
+   ],
+   "color": "$main",
+   "name": "leg"
+  }
+ ],
+ "surfaces": [
+  {
+   "z": 45,
+   "label": "top"
+  }
+ ]
+}

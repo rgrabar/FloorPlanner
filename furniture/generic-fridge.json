@@ -1,0 +1,91 @@
+{
+ "size": [
+  60,
+  65,
+  185
+ ],
+ "category": "appliance",
+ "colors": {
+  "main": "#e9eaec",
+  "door": "#f2f3f5",
+  "handle": "#9a9a9a"
+ },
+ "generic": {
+  "name": "Fridge",
+  "kind": "fridge",
+  "long": "width"
+ },
+ "clearance": {
+  "front": 70
+ },
+ "parts": [
+  {
+   "box": [
+    0,
+    0,
+    0,
+    60,
+    63,
+    185
+   ],
+   "color": "$main",
+   "name": "body"
+  },
+  {
+   "box": [
+    1,
+    63,
+    1,
+    58,
+    2,
+    120
+   ],
+   "color": "$door",
+   "name": "lower door"
+  },
+  {
+   "box": [
+    1,
+    63,
+    123,
+    58,
+    2,
+    61
+   ],
+   "color": "$door",
+   "name": "upper door"
+  },
+  {
+   "box": [
+    52,
+    64,
+    70,
+    2,
+    1,
+    40
+   ],
+   "color": "$handle",
+   "mat": "metal",
+   "name": "handle"
+  },
+  {
+   "box": [
+    52,
+    64,
+    130,
+    2,
+    1,
+    30
+   ],
+   "color": "$handle",
+   "mat": "metal",
+   "name": "handle"
+  }
+ ],
+ "surfaces": [
+  {
+   "z": 185,
+   "label": "top"
+  }
+ ]
+}

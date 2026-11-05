@@ -1,0 +1,166 @@
+{
+ "size": [
+  "$width + 10",
+  "$length + 15",
+  100
+ ],
+ "category": "bed",
+ "colors": {
+  "frame": "#b8956a",
+  "mattress": "#f2f0ea",
+  "pillow": "#ffffff",
+  "duvet": "#9fb3c8"
+ },
+ "generic": {
+  "name": "Bed",
+  "kind": "bed",
+  "long": "depth"
+ },
+ "clearance": {
+  "left": 50,
+  "right": 50,
+  "front": 50
+ },
+ "params": {
+  "width": {
+   "type": "number",
+   "default": 160,
+   "label": "Mattress width (cm)",
+   "min": 70,
+   "max": 200
+  },
+  "length": {
+   "type": "number",
+   "default": 200,
+   "label": "Mattress length (cm)",
+   "min": 140,
+   "max": 220
+  }
+ },
+ "parts": [
+  {
+   "box": [
+    0,
+    0,
+    0,
+    "$W",
+    8,
+    100
+   ],
+   "color": "$frame",
+   "name": "headboard"
+  },
+  {
+   "box": [
+    0,
+    8,
+    10,
+    "$W",
+    "$length + 5",
+    25
+   ],
+   "color": "$frame",
+   "name": "frame"
+  },
+  {
+   "cyl": [
+    6,
+    "$length + 8",
+    0,
+    2.5,
+    10
+   ],
+   "axis": "z",
+   "color": "$frame",
+   "mat": "wood",
+   "name": "leg"
+  },
+  {
+   "cyl": [
+    "$W - 6",
+    "$length + 8",
+    0,
+    2.5,
+    10
+   ],
+   "axis": "z",
+   "color": "$frame",
+   "mat": "wood",
+   "name": "leg"
+  },
+  {
+   "box": [
+    5,
+    12,
+    35,
+    "$width",
+    "$length - 2",
+    20
+   ],
+   "color": "$mattress",
+   "mat": "fabric",
+   "name": "mattress",
+   "radius": 3
+  },
+  {
+   "box": [
+    10,
+    16,
+    55,
+    "($width - 15) / 2",
+    40,
+    10
+   ],
+   "color": "$pillow",
+   "mat": "fabric",
+   "name": "left pillow",
+   "radius": 4,
+   "when": "$width >= 140"
+  },
+  {
+   "box": [
+    "15 + ($width - 15) / 2",
+    16,
+    55,
+    "($width - 15) / 2",
+    40,
+    10
+   ],
+   "color": "$pillow",
+   "mat": "fabric",
+   "name": "right pillow",
+   "radius": 4,
+   "when": "$width >= 140"
+  },
+  {
+   "box": [
+    10,
+    16,
+    55,
+    "$width - 10",
+    40,
+    10
+   ],
+   "color": "$pillow",
+   "mat": "fabric",
+   "name": "pillow",
+   "radius": 4,
+   "when": "$width < 140"
+  },
+  {
+   "box": [
+    5,
+    70,
+    55,
+    "$width",
+    "$length - 60",
+    6
+   ],
+   "color": "$duvet",
+   "mat": "fabric",
+   "name": "duvet",
+   "radius": 2
+  }
+ ],
+ "surfaces": []
+}

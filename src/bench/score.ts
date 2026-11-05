@@ -12,6 +12,7 @@ export interface Truth {
   scale: number
   walls: { a: Vec2; b: Vec2; thickness: number }[]
   openings: { kind: 'door' | 'window'; center: Vec2; width: number }[]
+  furniture?: TrueFurniture[]
 }
 
 export interface Score {
@@ -126,4 +127,57 @@ export function scoreDetection(truth: Truth, walls: Wall[], openings: Opening[])
     kindErrors,
     missedWalls,
   }
+}
+
+// ---------- furniture ----------
+
+export interface TrueFurniture {
+  model: string
+  center: Vec2
+  rotation: number // degrees; the back faces (sin r, -cos r)
+  width: number // cm
+  depth: number
+}
+
+export interface FurnitureScore {
+  total: number // true pieces
+  found: number // a piece detected at the right place
+  rightKind: number // ... and recognised as the right thing
+  facing: number // ... and turned the right way
+  detected: number // pieces detected
+  real: number // detected pieces at a true piece's place
+}
+
+// Kinds that count as the same thing.
+const SAME: Record<string, string> = {
+  'generic-office-chair': 'generic-chair',
+  'generic-kitchen-sink': 'generic-kitchen-base',
+  'generic-stove': 'generic-kitchen-base',
+}
+const kindOf = (model: string) => SAME[model] ?? model
+// Turned either way round, a table is the same table.
+const SYMMETRIC = new Set(['generic-dining-table', 'generic-coffee-table'])
+
+/** Detected pieces in the importer's units (centres; rotations unchanged), against the true ones. */
+export function scoreFurniture(truth: TrueFurniture[], found: { model: string; x: number; y: number; rotation: number }[], scale: number): FurnitureScore {
+  const used = new Set<number>()
+  const score: FurnitureScore = { total: truth.length, found: 0, rightKind: 0, facing: 0, detected: found.length, real: 0 }
+  for (const t of truth) {
+    const reach = Math.max(40, 0.35 * Math.max(t.width, t.depth)) * scale
+    const near = found
+      .map((f, i) => ({ f, i, d: dist({ x: f.x, y: f.y }, t.center) }))
+      .filter((c) => !used.has(c.i) && c.d <= reach)
+      .sort((a, b) => Number(kindOf(b.f.model) === kindOf(t.model)) - Number(kindOf(a.f.model) === kindOf(t.model)) || a.d - b.d)
+    const best = near[0]
+    if (!best) continue
+    used.add(best.i)
+    score.found++
+    if (kindOf(best.f.model) !== kindOf(t.model)) continue
+    score.rightKind++
+    const period = SYMMETRIC.has(t.model) ? 180 : 360
+    const diff = Math.abs((((best.f.rotation - t.rotation) % period) + period * 1.5) % period - period / 2)
+    if (diff <= 20) score.facing++
+  }
+  score.real = used.size
+  return score
 }

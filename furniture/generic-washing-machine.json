@@ -1,0 +1,66 @@
+{
+ "size": [
+  60,
+  60,
+  85
+ ],
+ "category": "appliance",
+ "colors": {
+  "main": "#f2f3f5",
+  "door": "#6d7a86",
+  "panel": "#d9dbde"
+ },
+ "generic": {
+  "name": "Washing machine",
+  "kind": "washing-machine",
+  "long": "width"
+ },
+ "clearance": {
+  "front": 60
+ },
+ "parts": [
+  {
+   "box": [
+    0,
+    0,
+    0,
+    60,
+    58,
+    85
+   ],
+   "color": "$main",
+   "name": "body"
+  },
+  {
+   "cyl": [
+    30,
+    58,
+    40,
+    17,
+    2
+   ],
+   "axis": "y",
+   "color": "$door",
+   "mat": "glass",
+   "name": "door"
+  },
+  {
+   "box": [
+    3,
+    58,
+    72,
+    54,
+    2,
+    10
+   ],
+   "color": "$panel",
+   "name": "control panel"
+  }
+ ],
+ "surfaces": [
+  {
+   "z": 85,
+   "label": "top"
+  }
+ ]
+}

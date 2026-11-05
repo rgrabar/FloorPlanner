@@ -1,5 +1,5 @@
 import { boundsOf, wallCorners, type Bounds } from './geometry'
-import type { Layer, LayerRole, Opening, Plan, Segment, Vec2, Wall } from './types'
+import type { Layer, LayerRole, Opening, PlacedFurniture, Plan, Segment, Vec2, Wall } from './types'
 
 export function emptyPlan(): Plan {
   return {
@@ -15,6 +15,8 @@ export function emptyPlan(): Plan {
     suggestedWalls: [],
     suggestedOpenings: [],
     rooms: [],
+    furniture: [],
+    suggestedFurniture: [],
   }
 }
 
@@ -81,7 +83,17 @@ export function scalePlan(plan: Plan, k: number): Plan {
     suggestedWalls: plan.suggestedWalls.map(fileWall),
     suggestedOpenings: plan.suggestedOpenings.map(fileOpening),
     rooms: plan.rooms.map((r) => ({ ...r, points: r.points.map(p) })),
+    furniture: plan.furniture.map((f) => scaleFurniture(f, k)),
+    suggestedFurniture: plan.suggestedFurniture.map((f) => scaleFurniture(f, k)),
   }
+}
+
+/** Furniture measured from the drawing moves and resizes with it. */
+function scaleFurniture(f: PlacedFurniture, k: number): PlacedFurniture {
+  const values = f.values && Object.fromEntries(
+    Object.entries(f.values).map(([key, v]) => [key, ['width', 'depth', 'length'].includes(key) && typeof v === 'number' ? v * k : v]),
+  )
+  return { ...f, x: f.x * k, y: f.y * k, values }
 }
 
 /** Moves the geometry so its top-left corner is at (0, 0). Used by vector importers. */

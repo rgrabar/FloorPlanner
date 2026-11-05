@@ -1,0 +1,160 @@
+{
+ "size": [
+  "$width",
+  "$depth",
+  85
+ ],
+ "category": "seating",
+ "colors": {
+  "main": "#8b9096",
+  "legs": "#3d3129"
+ },
+ "generic": {
+  "name": "Armchair",
+  "kind": "armchair",
+  "long": "width"
+ },
+ "clearance": {
+  "front": 50
+ },
+ "params": {
+  "width": {
+   "type": "number",
+   "default": 85,
+   "label": "Width (cm)",
+   "min": 60,
+   "max": 400
+  },
+  "depth": {
+   "type": "number",
+   "default": 85,
+   "label": "Depth (cm)",
+   "min": 60,
+   "max": 120
+  }
+ },
+ "parts": [
+  {
+   "cyl": [
+    "6",
+    "6",
+    0,
+    2,
+    10
+   ],
+   "axis": "z",
+   "color": "$legs",
+   "mat": "wood",
+   "name": "leg"
+  },
+  {
+   "cyl": [
+    "$W - 6",
+    "6",
+    0,
+    2,
+    10
+   ],
+   "axis": "z",
+   "color": "$legs",
+   "mat": "wood",
+   "name": "leg"
+  },
+  {
+   "cyl": [
+    "6",
+    "$D - 6",
+    0,
+    2,
+    10
+   ],
+   "axis": "z",
+   "color": "$legs",
+   "mat": "wood",
+   "name": "leg"
+  },
+  {
+   "cyl": [
+    "$W - 6",
+    "$D - 6",
+    0,
+    2,
+    10
+   ],
+   "axis": "z",
+   "color": "$legs",
+   "mat": "wood",
+   "name": "leg"
+  },
+  {
+   "box": [
+    0,
+    0,
+    10,
+    "$W",
+    "$D",
+    32
+   ],
+   "color": "$main",
+   "mat": "fabric",
+   "name": "base"
+  },
+  {
+   "box": [
+    0,
+    0,
+    10,
+    16,
+    "$D",
+    52
+   ],
+   "color": "$main",
+   "mat": "fabric",
+   "name": "left arm",
+   "radius": 3
+  },
+  {
+   "box": [
+    "$W - 16",
+    0,
+    10,
+    16,
+    "$D",
+    52
+   ],
+   "color": "$main",
+   "mat": "fabric",
+   "name": "right arm",
+   "radius": 3
+  },
+  {
+   "box": [
+    16,
+    0,
+    42,
+    "$W - 32",
+    20,
+    43
+   ],
+   "color": "$main",
+   "mat": "fabric",
+   "name": "back cushion",
+   "radius": 4
+  },
+  {
+   "box": [
+    16,
+    20,
+    42,
+    "$W - 32",
+    "$D - 21",
+    12
+   ],
+   "color": "$main",
+   "mat": "fabric",
+   "name": "seat cushion",
+   "radius": 4
+  }
+ ],
+ "surfaces": []
+}

@@ -1,0 +1,101 @@
+{
+ "size": [
+  "$width",
+  "$depth",
+  75
+ ],
+ "category": "table",
+ "colors": {
+  "main": "#c49a6c",
+  "legs": "#a07a52"
+ },
+ "generic": {
+  "name": "Dining table",
+  "kind": "table",
+  "long": "width"
+ },
+ "params": {
+  "width": {
+   "type": "number",
+   "default": 160,
+   "label": "Width (cm)",
+   "min": 60,
+   "max": 300
+  },
+  "depth": {
+   "type": "number",
+   "default": 90,
+   "label": "Depth (cm)",
+   "min": 50,
+   "max": 140
+  }
+ },
+ "parts": [
+  {
+   "box": [
+    0,
+    0,
+    72,
+    "$W",
+    "$D",
+    3
+   ],
+   "color": "$main",
+   "name": "top"
+  },
+  {
+   "box": [
+    4,
+    4,
+    0,
+    5,
+    5,
+    72
+   ],
+   "color": "$legs",
+   "name": "leg"
+  },
+  {
+   "box": [
+    "$W - 9",
+    4,
+    0,
+    5,
+    5,
+    72
+   ],
+   "color": "$legs",
+   "name": "leg"
+  },
+  {
+   "box": [
+    4,
+    "$D - 9",
+    0,
+    5,
+    5,
+    72
+   ],
+   "color": "$legs",
+   "name": "leg"
+  },
+  {
+   "box": [
+    "$W - 9",
+    "$D - 9",
+    0,
+    5,
+    5,
+    72
+   ],
+   "color": "$legs",
+   "name": "leg"
+  }
+ ],
+ "surfaces": [
+  {
+   "z": 75,
+   "label": "top"
+  }
+ ]
+}

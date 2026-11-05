@@ -1,0 +1,100 @@
+{
+ "size": [
+  "$width",
+  60,
+  90
+ ],
+ "category": "kitchen",
+ "colors": {
+  "main": "#f4f4f2",
+  "plinth": "#cfcfcf",
+  "handle": "#9a9a9a",
+  "top": "#b8a68e"
+ },
+ "generic": {
+  "name": "Kitchen units",
+  "kind": "kitchen-base",
+  "long": "width"
+ },
+ "clearance": {
+  "front": 90
+ },
+ "params": {
+  "width": {
+   "type": "number",
+   "default": 240,
+   "label": "Width (cm)",
+   "min": 30,
+   "max": 600
+  }
+ },
+ "parts": [
+  {
+   "box": [
+    0,
+    5,
+    0,
+    "$W",
+    52,
+    10
+   ],
+   "color": "$plinth",
+   "name": "plinth"
+  },
+  {
+   "box": [
+    0,
+    0,
+    10,
+    "$W",
+    57,
+    76
+   ],
+   "color": "$main",
+   "name": "cabinet"
+  },
+  {
+   "box": [
+    1,
+    57,
+    11,
+    "$W - 2",
+    2,
+    74
+   ],
+   "color": "$main",
+   "name": "front"
+  },
+  {
+   "box": [
+    2,
+    59,
+    78,
+    "$W - 4",
+    1,
+    1.5
+   ],
+   "color": "$handle",
+   "mat": "metal",
+   "name": "handle rail"
+  },
+  {
+   "box": [
+    0,
+    0,
+    86,
+    "$W",
+    60,
+    4
+   ],
+   "color": "$top",
+   "name": "worktop"
+  }
+ ],
+ "surfaces": [
+  {
+   "z": 90,
+   "label": "worktop"
+  }
+ ]
+}

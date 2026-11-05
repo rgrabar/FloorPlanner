@@ -1,0 +1,92 @@
+{
+ "size": [
+  "$width",
+  "$depth",
+  75
+ ],
+ "category": "desk",
+ "colors": {
+  "main": "#e8e4dc",
+  "legs": "#c9c4b9"
+ },
+ "generic": {
+  "name": "Desk",
+  "kind": "desk",
+  "long": "width"
+ },
+ "clearance": {
+  "front": 70
+ },
+ "params": {
+  "width": {
+   "type": "number",
+   "default": 120,
+   "label": "Width (cm)",
+   "min": 60,
+   "max": 240
+  },
+  "depth": {
+   "type": "number",
+   "default": 60,
+   "label": "Depth (cm)",
+   "min": 40,
+   "max": 100
+  }
+ },
+ "parts": [
+  {
+   "box": [
+    0,
+    0,
+    72,
+    "$W",
+    "$D",
+    3
+   ],
+   "color": "$main",
+   "name": "top"
+  },
+  {
+   "box": [
+    0,
+    2,
+    0,
+    3,
+    "$D - 4",
+    72
+   ],
+   "color": "$legs",
+   "name": "left side"
+  },
+  {
+   "box": [
+    "$W - 3",
+    2,
+    0,
+    3,
+    "$D - 4",
+    72
+   ],
+   "color": "$legs",
+   "name": "right side"
+  },
+  {
+   "box": [
+    3,
+    2,
+    35,
+    "$W - 6",
+    2,
+    37
+   ],
+   "color": "$legs",
+   "name": "back panel"
+  }
+ ],
+ "surfaces": [
+  {
+   "z": 75,
+   "label": "top"
+  }
+ ]
+}

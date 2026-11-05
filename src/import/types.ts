@@ -1,4 +1,4 @@
-import type { Background, Opening, Parts, Room, Segment, SourceFormat, Wall } from '../model/types'
+import type { Background, Opening, Parts, Room, Segment, SourceFormat, Vec2, Wall } from '../model/types'
 
 /** What every importer returns. Everything is already in centimetres. */
 export interface ImportResult {
@@ -11,6 +11,8 @@ export interface ImportResult {
   rooms: Room[]
   parts?: Parts
   note?: string
+  // Words written on the plan (PDF text), with where their middle is: furniture names, room names.
+  texts?: { text: string; at: Vec2 }[]
 }
 
 export interface ImportOptions {

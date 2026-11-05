@@ -196,3 +196,50 @@ function ListField({ label, value, onChange }: { label: string; value: number[];
     </label>
   )
 }
+
+/** Every model side by side (?gallery, or ?gallery=generic to filter), front left view. */
+export function Gallery() {
+  const filter = new URLSearchParams(location.search).get('gallery') ?? ''
+  const models = useMemo(
+    () =>
+      Object.keys(MODELS)
+        .filter((n) => n.includes(filter))
+        .sort()
+        .map((name) => ({ name, model: expandModel(MODELS[name]) })),
+    [filter],
+  )
+  // Rows of up to 6, spaced by the widest model in the row.
+  const perRow = 6
+  const placed = models.map((m, i) => {
+    const row = Math.floor(i / perRow)
+    const col = i % perRow
+    return { ...m, x: col * 2.6, z: row * 2.2 }
+  })
+  return (
+    <div className="scene-wrap preview-scene" style={{ height: '100%' }}>
+      <Canvas shadows dpr={[1, 2]}>
+        <color attach="background" args={['#ffffff']} />
+        <hemisphereLight args={['#ffffff', '#e4e0d8', 2.6]} />
+        <directionalLight position={[-4, 8, 6]} intensity={1.1} castShadow shadow-mapSize={[2048, 2048]} shadow-bias={-0.0004} />
+        {placed.map((p) => (
+          <group key={p.name} position={[p.x - (p.model.size[0] * M) / 2, 0, p.z - (p.model.size[1] * M) / 2]}>
+            <FurnitureMesh model={p.model} />
+          </group>
+        ))}
+        <mesh rotation={[-Math.PI / 2, 0, 0]} receiveShadow position={[6, 0, 3]}>
+          <planeGeometry args={[40, 40]} />
+          <shadowMaterial opacity={0.15} />
+        </mesh>
+        <PerspectiveCamera makeDefault fov={35} position={[2, 9, 14]} />
+        <OrbitControls makeDefault target={[6.5, 0.4, 3.5]} />
+      </Canvas>
+      <div className="scene-bar" style={{ fontSize: 12, maxWidth: 520 }}>
+        {placed.map((p, i) => (
+          <span key={p.name} style={{ marginRight: 8 }}>
+            {i + 1}. {MODELS[p.name].generic?.name ?? MODELS[p.name].ikea?.name ?? p.name}
+          </span>
+        ))}
+      </div>
+    </div>
+  )
+}

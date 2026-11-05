@@ -1,5 +1,6 @@
 import { dist, projectOnWall } from '../model/geometry'
-import type { Plan, Vec2, Wall } from '../model/types'
+import { insideFootprint, modelOf } from '../furniture/placement'
+import type { PlacedFurniture, Plan, Vec2, Wall } from '../model/types'
 import { pointOnWall, type Selection } from '../model/walls'
 
 const SNAP_PX = 10 // how close (in screen pixels) the mouse must be to snap
@@ -89,6 +90,7 @@ export type Hit =
   | { kind: 'opening'; id: string; t: number }
   | { kind: 'wall'; id: string; t: number }
   | { kind: 'suggestion'; id: string }
+  | { kind: 'furniture'; id: string }
 
 /** What's under the mouse in the select tool. Handles of the selected wall win, then openings, then walls. */
 export function hitTest(p: Vec2, plan: Plan, zoom: number, selection: Selection): Hit | null {
@@ -107,6 +109,14 @@ export function hitTest(p: Vec2, plan: Plan, zoom: number, selection: Selection)
     )
     if (opening) return { kind: 'opening', id: opening.id, t: onWall.t }
     return { kind: 'wall', id: onWall.wall.id, t: onWall.t }
+  }
+  const pieces = [...plan.furniture, ...plan.suggestedFurniture].filter((f) => insideFootprint(p, f))
+  if (pieces.length) {
+    const area = (f: PlacedFurniture) => {
+      const size = modelOf(f)?.size ?? [50, 50]
+      return size[0] * size[1]
+    }
+    return { kind: 'furniture', id: pieces.sort((a, b) => area(a) - area(b))[0].id }
   }
   const suggestion = wallAt(p, plan.suggestedWalls, zoom)
   if (suggestion) return { kind: 'suggestion', id: suggestion.wall.id }

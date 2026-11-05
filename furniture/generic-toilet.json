@@ -1,0 +1,61 @@
+{
+ "size": [
+  38,
+  68,
+  80
+ ],
+ "category": "bathroom",
+ "colors": {
+  "main": "#fbfbfb"
+ },
+ "generic": {
+  "name": "Toilet",
+  "kind": "toilet",
+  "long": "depth"
+ },
+ "clearance": {
+  "front": 60
+ },
+ "parts": [
+  {
+   "box": [
+    2,
+    0,
+    38,
+    34,
+    18,
+    42
+   ],
+   "color": "$main",
+   "name": "tank",
+   "radius": 3
+  },
+  {
+   "box": [
+    5,
+    16,
+    0,
+    28,
+    50,
+    38
+   ],
+   "color": "$main",
+   "name": "bowl",
+   "radius": 10
+  },
+  {
+   "box": [
+    4,
+    18,
+    38,
+    30,
+    48,
+    3
+   ],
+   "color": "$main",
+   "name": "seat",
+   "radius": 8
+  }
+ ],
+ "surfaces": []
+}

@@ -1,0 +1,100 @@
+{
+ "size": [
+  "$width",
+  60,
+  200
+ ],
+ "category": "storage",
+ "colors": {
+  "main": "#e9e6df",
+  "front": "#f2f0eb",
+  "handle": "#9a9a9a"
+ },
+ "generic": {
+  "name": "Wardrobe",
+  "kind": "wardrobe",
+  "long": "width"
+ },
+ "clearance": {
+  "front": 60
+ },
+ "params": {
+  "width": {
+   "type": "number",
+   "default": 100,
+   "label": "Width (cm)",
+   "min": 40,
+   "max": 400
+  }
+ },
+ "parts": [
+  {
+   "box": [
+    0,
+    0,
+    0,
+    "$W",
+    58,
+    200
+   ],
+   "color": "$main",
+   "name": "body"
+  },
+  {
+   "box": [
+    0.5,
+    58,
+    1,
+    "$W / 2 - 1",
+    2,
+    198
+   ],
+   "color": "$front",
+   "name": "left door"
+  },
+  {
+   "box": [
+    "$W / 2 + 0.5",
+    58,
+    1,
+    "$W / 2 - 1",
+    2,
+    198
+   ],
+   "color": "$front",
+   "name": "right door"
+  },
+  {
+   "cyl": [
+    "$W / 2 - 4",
+    59,
+    85,
+    0.8,
+    30
+   ],
+   "axis": "z",
+   "color": "$handle",
+   "mat": "metal",
+   "name": "left handle"
+  },
+  {
+   "cyl": [
+    "$W / 2 + 4",
+    59,
+    85,
+    0.8,
+    30
+   ],
+   "axis": "z",
+   "color": "$handle",
+   "mat": "metal",
+   "name": "right handle"
+  }
+ ],
+ "surfaces": [
+  {
+   "z": 200,
+   "label": "top"
+  }
+ ]
+}

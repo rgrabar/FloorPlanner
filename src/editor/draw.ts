@@ -1,5 +1,6 @@
+import { displayName, footprint } from '../furniture/placement'
 import { dist, formatLength } from '../model/geometry'
-import type { LayerRole, Opening, Plan, Vec2, Wall } from '../model/types'
+import type { LayerRole, Opening, PlacedFurniture, Plan, Vec2, Wall } from '../model/types'
 import { joinedEnds, pointOnWall, wallLength, wallOutline, type Selection } from '../model/walls'
 import type { Snap } from './snap'
 
@@ -39,6 +40,10 @@ const COLORS = {
   preview: 'rgba(22, 163, 74, 0.55)',
   snap: '#16a34a',
   pick: '#dc2626',
+  furniture: 'rgba(255, 255, 255, 0.82)',
+  furnitureLine: '#57534e',
+  furnitureSuggested: 'rgba(124, 58, 237, 0.10)',
+  furnitureSuggestedLine: '#7c3aed',
 }
 
 type Ctx = CanvasRenderingContext2D
@@ -84,6 +89,9 @@ export function drawScene(ctx: Ctx, size: { w: number; h: number }, v: View, pla
   if (o.highlight) strokeLines((layer) => layer === o.highlight, '#db2777', 2)
 
   const sel = o.selection
+  const selectedPiece = sel?.kind === 'furniture' ? sel.id : null
+  for (const f of plan.suggestedFurniture) drawFurniture(ctx, S, v.zoom, f, true, f.id === selectedPiece)
+  for (const f of plan.furniture) drawFurniture(ctx, S, v.zoom, f, false, f.id === selectedPiece)
   drawWalls(ctx, S, plan.suggestedWalls, plan.suggestedOpenings, (w) =>
     sel?.kind === 'suggestion' && sel.id === w.id ? COLORS.suggestionSelected : COLORS.suggestion, true)
   drawWalls(ctx, S, plan.walls, plan.openings, (w) =>
@@ -115,6 +123,46 @@ export function drawScene(ctx: Ctx, size: { w: number; h: number }, v: View, pla
   if (o.snap && o.snap.kind !== 'free') drawSnap(ctx, S(o.snap.p), o.snap.kind)
   if (o.picks) drawPicks(ctx, S, o.picks.tool, o.picks.points, o.picks.cursor)
   drawScaleBar(ctx, size, v.zoom)
+}
+
+/** A footprint with its front edge drawn thicker, and the name when there's room for it. */
+function drawFurniture(ctx: Ctx, S: (p: Vec2) => Vec2, zoom: number, f: PlacedFurniture, suggested: boolean, selected: boolean) {
+  const pts = footprint(f).map(S)
+  const line = selected ? COLORS.wallSelected : suggested ? COLORS.furnitureSuggestedLine : COLORS.furnitureLine
+  fillPolygon(ctx, pts, suggested ? COLORS.furnitureSuggested : COLORS.furniture, line, suggested)
+  ctx.strokeStyle = line
+  ctx.lineWidth = selected ? 3 : 2
+  ctx.beginPath()
+  ctx.moveTo(pts[2].x, pts[2].y)
+  ctx.lineTo(pts[3].x, pts[3].y)
+  ctx.stroke()
+  if (selected) {
+    ctx.lineWidth = 2
+    ctx.beginPath()
+    pts.forEach((p, i) => (i ? ctx.lineTo(p.x, p.y) : ctx.moveTo(p.x, p.y)))
+    ctx.closePath()
+    ctx.stroke()
+  }
+  const name = displayName(f.model)
+  ctx.font = '11px system-ui, sans-serif'
+  const across = Math.min(dist(pts[0], pts[1]), dist(pts[1], pts[2]))
+  const along = Math.max(dist(pts[0], pts[1]), dist(pts[1], pts[2]))
+  if (across < 13 || ctx.measureText(name).width > along - 4 || zoom < 0.15) return
+  const c = { x: (pts[0].x + pts[2].x) / 2, y: (pts[0].y + pts[2].y) / 2 }
+  // Along the longer side, never upside down.
+  const side = dist(pts[0], pts[1]) >= dist(pts[1], pts[2]) ? [pts[0], pts[1]] : [pts[1], pts[2]]
+  let angle = Math.atan2(side[1].y - side[0].y, side[1].x - side[0].x)
+  if (angle > Math.PI / 2) angle -= Math.PI
+  if (angle < -Math.PI / 2) angle += Math.PI
+  ctx.save()
+  ctx.translate(c.x, c.y)
+  ctx.rotate(angle)
+  ctx.fillStyle = suggested ? COLORS.furnitureSuggestedLine : '#44403c'
+  ctx.textAlign = 'center'
+  ctx.textBaseline = 'middle'
+  ctx.fillText(name, 0, 0)
+  ctx.restore()
+  ctx.textBaseline = 'alphabetic'
 }
 
 function drawGrid(ctx: Ctx, size: { w: number; h: number }, v: View) {
