@@ -198,10 +198,18 @@ Gaps between wall pieces, and gaps between a wall's end and another wall, are ju
 picture: a quarter-circle swing or leaf from a jamb makes a door, a line running along inside the
 wall makes a window, wall drawn in pieces is joined, and an empty gap is left open.
 
-For pictures without a scale, the scale is estimated from the doors (nearly every inner door is
-70–90 cm wide), or from the wall thickness when there are too few doors. In outlined pictures,
-short "walls" of an odd thickness or hanging off a wall by one end are dropped: they're usually
-furniture outlines.
+For pictures without a scale, the scale is read from the numbers printed around the plan: a ruler
+(0, 100, 200 … along the edges) or chains of dimensions (each part's length written in its middle).
+Along a row of such numbers the distances on the picture follow their values, so several numbers
+agreeing give the exact scale; the unit (cm or mm) is the one that fits the plan. The numbers are
+read with OCR in the margins round the building, also turned for vertical dimensions, and the
+plan's tilt is allowed for. When there are no readable numbers, the scale is estimated from the
+doors (nearly every inner door is 70–90 cm wide), or from the wall thickness when there are too
+few doors. The side panel says which was used.
+
+In outlined pictures, short "walls" of an odd thickness or hanging off a wall by one end are
+dropped: they're usually furniture outlines. A dimension line drawn closer to a wall than about
+1.3 times the wall's thickness can hide that wall there (it looks like a window's glazing).
 
 ### Testing wall and furniture detection
 

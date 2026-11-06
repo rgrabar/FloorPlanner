@@ -151,8 +151,12 @@ export function mergeInner(shapes: Shape[]): Shape[] {
         inBox(s.box.center, k.box) &&
         s.points.filter((p) => inBox(p, k.box, 2)).length >= s.points.length * 0.9,
     )
-    if (host) host.points.push(...s.points)
-    else kept.push({ ...s, points: [...s.points] })
+    if (host) {
+      host.points.push(...s.points)
+      // A named patch inside its own drawn outline: the name (and solid fill) belong to the piece.
+      if (!host.label && s.label) host.label = s.label
+      if (s.filled) host.filled = true
+    } else kept.push({ ...s, points: [...s.points] })
   }
   return kept
 }

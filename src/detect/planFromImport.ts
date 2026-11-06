@@ -6,6 +6,7 @@ import { finishWalls, guessLayerRoles, keepBuilding, keepTypicalThickness, struc
 import { inBox, insideBuilding, mergeInner, recogniseFurniture, shapesFromLines, type FurnitureOptions } from './furniture'
 import { loadColours, patchesFromPicture, shapesFromInk } from './furniturePicture'
 import { readLabels } from './labels'
+import { cmPerPxFrom, readMarginNumbers, scaleFromNumbers } from './scaleFromText'
 import { findWallPieces, loadPicture, pictureGapClassifier, type Picture } from './raster'
 
 // Inner walls are usually 10–15 cm thick. When a picture's scale is unknown, it's estimated from
@@ -78,23 +79,62 @@ export async function planFromImport(r: ImportResult, fileName: string, use?: 'p
       let found = finishWalls(walls, pictureClassifier)
       if (pieces.outlined) found = keepTypicalThickness(found.walls, found.openings)
       pictureOutlined = pieces.outlined
+      // A better scale found below: everything found so far grows or shrinks with it.
+      const rescale = (k: number) => {
+        if (Math.abs(k - 1) < 0.002) return
+        plan = { ...scalePlan(plan, k), scaleKnown: false }
+        const p = (v: Vec2) => ({ x: v.x * k, y: v.y * k })
+        found = {
+          walls: found.walls.map((w) => ({ ...w, a: p(w.a), b: p(w.b), thickness: w.thickness * k })),
+          openings: found.openings.map((o) => ({ ...o, offset: o.offset * k, width: o.width * k })),
+        }
+        const bg2 = plan.background!
+        const u = bg2.cmPerPx / pic.scale
+        pictureClassifier = pictureGapClassifier(pic, (q) => ({ x: (q.x - bg2.x) / u, y: (q.y - bg2.y) / u }), 1 / u)
+      }
       // Doors measure the scale better than walls do: walls are 10–25 cm thick, but nearly
       // every inner door is 70–90 cm wide.
       const doors = found.openings.filter((o) => o.kind === 'door').map((o) => o.width).sort((a, b) => a - b)
       if (scaleNote && doors.length >= 3) {
         const k = TYPICAL_DOOR_CM / doors[doors.length >> 1]
-        if (Math.abs(k - 1) > 0.05) {
-          plan = { ...scalePlan(plan, k), scaleKnown: false }
-          const p = (v: Vec2) => ({ x: v.x * k, y: v.y * k })
-          found = {
-            walls: found.walls.map((w) => ({ ...w, a: p(w.a), b: p(w.b), thickness: w.thickness * k })),
-            openings: found.openings.map((o) => ({ ...o, offset: o.offset * k, width: o.width * k })),
-          }
-          const bg2 = plan.background!
-          const u = bg2.cmPerPx / pic.scale
-          pictureClassifier = pictureGapClassifier(pic, (q) => ({ x: (q.x - bg2.x) / u, y: (q.y - bg2.y) / u }), 1 / u)
-        }
+        if (Math.abs(k - 1) > 0.05) rescale(k)
         scaleNote = ' Scale estimated from the door widths: calibrate it for exact sizes.'
+      }
+      // Best of all: the plan's own numbers (a ruler, or chains of dimensions round the building),
+      // in whichever unit agrees with the estimate so far.
+      if (scaleNote) {
+        try {
+          const xs = pieces.walls.flatMap((w) => [w.a.x, w.b.x])
+          const ys = pieces.walls.flatMap((w) => [w.a.y, w.b.y])
+          const building = {
+            x0: Math.min(...xs) / pic.scale,
+            x1: Math.max(...xs) / pic.scale,
+            y0: Math.min(...ys) / pic.scale,
+            y1: Math.max(...ys) / pic.scale,
+          }
+          const bg3 = plan.background!
+          const { numbers } = await readMarginNumbers(bg3.src, building)
+          // How far the walls are turned on the picture (modulo 90°), length-weighted.
+          let sx = 0
+          let sy = 0
+          for (const w of pieces.walls) {
+            const a = 4 * Math.atan2(w.b.y - w.a.y, w.b.x - w.a.x)
+            const len = Math.hypot(w.b.x - w.a.x, w.b.y - w.a.y)
+            sx += Math.cos(a) * len
+            sy += Math.sin(a) * len
+          }
+          const reading = scaleFromNumbers(numbers, Math.atan2(sy, sx) / 4)
+          const cmPerPx = reading && cmPerPxFrom(reading, bg3.cmPerPx)
+          if (reading && cmPerPx) {
+            rescale(cmPerPx / bg3.cmPerPx)
+            scaleNote =
+              reading.kind === 'ruler'
+                ? ` Scale read from the ruler on the plan (${reading.numbers} numbers agree).`
+                : ` Scale read from the plan's dimensions (${reading.numbers} numbers agree): check one with Calibrate.`
+          }
+        } catch (e) {
+          console.warn('Could not read the numbers on the plan', e)
+        }
       }
       fromPicture = { ...found, how: 'from the picture (thick dark walls)' }
     }
@@ -137,8 +177,9 @@ export async function planFromImport(r: ImportResult, fileName: string, use?: 'p
     const patches = patchesFromPicture(pic, unitsPerPicPx, (p) => ({ x: bg.x + p.x * unitsPerPicPx, y: bg.y + p.y * unitsPerPicPx }))
     await readLabels(pic, patches)
     shapes.push(...patches.map((p) => p.shape))
-    // Outlines drawn in the picture, when the file has no lines of its own (those are better).
-    if (inkPicture && !plan.lines.length) {
+    // Outlines drawn in the picture, when the file has no lines of its own (those are better)
+    // and its furniture isn't drawn as coloured patches (their outlines would only repeat them).
+    if (inkPicture && !plan.lines.length && patches.length < 3) {
       const u = bg.cmPerPx / inkPicture.scale
       shapes.push(...shapesFromInk(inkPicture.thin, inkPicture.w, inkPicture.h, u, (p) => ({ x: bg.x + p.x * u, y: bg.y + p.y * u }), best.walls))
     }

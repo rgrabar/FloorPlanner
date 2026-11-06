@@ -502,10 +502,24 @@ def draw_plan(canvas, walls, openings, rooms, furniture, style, to_page, rnd):
     for n, (rx0, ry0, rx1, ry1) in enumerate(rooms):
         canvas.text(tp(((rx0 + rx1) / 2 - 40, (ry0 + ry1) / 2)), f"Room {n + 1}")
     W = walls[0][2]
-    canvas.line(tp((0, -90)), tp((W, -90)), (0, 0, 0), 0.25)
+    canvas.line(tp((0, -130)), tp((W, -130)), (0, 0, 0), 0.25)
     for x in (0, W):
-        canvas.line(tp((x, -105)), tp((x, -75)), (0, 0, 0), 0.25)
-    canvas.text(tp((W / 2 - 30, -100)), f"{W} cm")
+        canvas.line(tp((x, -145)), tp((x, -115)), (0, 0, 0), 0.25)
+    canvas.text(tp((W / 2 - 30, -140)), f"{W} cm")
+
+    # Dimension chains above and below, like an architect's plan (75 cm out, a usual distance):
+    # a tick at each corner and where an inner wall meets the outer wall, and each part's length
+    # written in its middle.
+    H = walls[1][3]
+    for y_wall, y_line in ((0, -75), (H, H + 75)):
+        xs = sorted({0, W} | {x1 for x1, y1, x2, y2, _ in walls[4:] if x1 == x2 and min(abs(y1 - y_wall), abs(y2 - y_wall)) < 1})
+        canvas.line(tp((0, y_line)), tp((W, y_line)), (0, 0, 0), 0.25)
+        for x in xs:
+            canvas.line(tp((x, y_line - 8)), tp((x, y_line + 8)), (0, 0, 0), 0.25)
+        for a, b in zip(xs, xs[1:]):
+            if b - a >= 60:  # room to write the number in
+                text = str(round(b - a))
+                canvas.text(tp(((a + b) / 2 - len(text) * 4.5, y_line - 20)), text)
 
 
 def _screen_angles(to_page, c, lo, hi, r):
