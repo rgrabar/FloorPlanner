@@ -42,6 +42,11 @@ export interface PlacedFurniture {
   rotation: number // degrees; 0 = the front faces down the plan (+y)
   values?: Record<string, number | string | number[]> // the model's options (width, depth...)
   label?: string // the plan's own text it was recognised from
+  // Standing on another piece: its id, which of its surfaces, and the height there (cm).
+  on?: string
+  surface?: number
+  z?: number
+  locked?: boolean // can't be moved or turned
 }
 
 export interface Room {

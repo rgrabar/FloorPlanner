@@ -1,5 +1,6 @@
 import { useEffect, useReducer, useRef, useState } from 'react'
-import { acceptFurniture, updateFurniture } from '../furniture/placement'
+import { dragFurniture, moveFurniture } from '../furniture/fit'
+import { acceptFurniture } from '../furniture/placement'
 import { dist, projectOnWall } from '../model/geometry'
 import { planBounds } from '../model/plan'
 import type { Opening, Plan, Vec2, Wall } from '../model/types'
@@ -16,7 +17,7 @@ import {
 } from '../model/walls'
 import { useStore, type DrawDefaults } from '../store/store'
 import { CalibrateDialog } from './CalibrateDialog'
-import { drawScene, type View } from './draw'
+import { drawScene, rotationHandle, type View } from './draw'
 import { hitTest, snapPoint, wallAt, type Snap } from './snap'
 import { FURNITURE_DRAG, placeFromCatalogue } from '../ui/Catalogue'
 import { ToolOptions } from './ToolOptions'
@@ -26,7 +27,8 @@ type Drag =
   | { kind: 'wall'; id: string; last: Vec2; started: boolean }
   | { kind: 'end'; id: string; end: 'a' | 'b'; started: boolean; ignore: Set<string> }
   | { kind: 'opening'; id: string; grab: number; started: boolean }
-  | { kind: 'furniture'; id: string; last: Vec2; started: boolean }
+  | { kind: 'furniture'; id: string; grab: Vec2; started: boolean }
+  | { kind: 'turn'; id: string; started: boolean }
 
 /** Where a new door/window would go for the mouse at `p`, or null when not over a wall. */
 function openingPreview(p: Vec2, plan: Plan, zoom: number, kind: 'door' | 'window', d: DrawDefaults) {
@@ -149,7 +151,7 @@ export function PlanCanvas() {
         setMeasured(null)
         if (chain.current) endChain()
         else s.select(null)
-      } else if ((e.key === 'Delete' || e.key === 'Backspace') && s.selection) {
+      } else if ((e.key === 'Delete' || e.key === 'Backspace') && s.selection && s.selection.kind !== 'furniture') {
         s.edit((p) => deleteSelection(p, s.selection))
         s.select(null)
       } else if (e.key === 'Enter' && s.selection?.kind === 'suggestion') {
@@ -159,11 +161,6 @@ export function PlanCanvas() {
       } else if (e.key === 'Enter' && s.selection?.kind === 'furniture') {
         const id = s.selection.id
         s.edit((p) => acceptFurniture(p, [id]))
-      } else if ((e.key === 'r' || e.key === 'R') && s.selection?.kind === 'furniture') {
-        // R turns the selected piece 90° clockwise, Shift+R anticlockwise.
-        const id = s.selection.id
-        const f = [...s.plan.furniture, ...s.plan.suggestedFurniture].find((x) => x.id === id)
-        if (f) s.edit((p) => updateFurniture(p, id, { rotation: (((f.rotation + (e.shiftKey ? -90 : 90)) % 360) + 360) % 360 }))
       }
     }
     const up = (e: KeyboardEvent) => {
@@ -222,6 +219,13 @@ export function PlanCanvas() {
     const zoom = view.current.zoom
 
     if (tool === 'select') {
+      // The selected piece's turning handle comes first.
+      const piece = selection?.kind === 'furniture' ? plan.furniture.find((f) => f.id === selection.id) : undefined
+      if (piece && !piece.locked && dist(p, rotationHandle(piece, zoom)) < 9 / zoom) {
+        canvasRef.current!.setPointerCapture(e.pointerId)
+        drag.current = { kind: 'turn', id: piece.id, started: false }
+        return
+      }
       const hit = hitTest(p, plan, zoom, selection)
       if (!hit) {
         select(null)
@@ -231,7 +235,8 @@ export function PlanCanvas() {
       canvasRef.current!.setPointerCapture(e.pointerId)
       if (hit.kind === 'furniture') {
         select({ kind: 'furniture', id: hit.id })
-        drag.current = { kind: 'furniture', id: hit.id, last: p, started: false }
+        const f = [...plan.furniture, ...plan.suggestedFurniture].find((x) => x.id === hit.id)!
+        if (!f.locked) drag.current = { kind: 'furniture', id: hit.id, grab: { x: p.x - f.x, y: p.y - f.y }, started: false }
       } else if (hit.kind === 'end') {
         // Walls joined at this end move along, so they mustn't be snap targets.
         const at = plan.walls.find((w) => w.id === hit.id)![hit.end]
@@ -323,9 +328,14 @@ export function PlanCanvas() {
     } else if (d.kind === 'furniture') {
       const f = [...plan.furniture, ...plan.suggestedFurniture].find((x) => x.id === d.id)
       if (!f) return
-      const at = { x: f.x + p.x - d.last.x, y: f.y + p.y - d.last.y }
-      d.last = p
-      mutate((pl) => updateFurniture(pl, d.id, at))
+      mutate((pl) => dragFurniture(pl, f, { x: p.x - d.grab.x, y: p.y - d.grab.y }, e.altKey ? 0 : 12 / zoom + 3))
+    } else if (d.kind === 'turn') {
+      const f = plan.furniture.find((x) => x.id === d.id)
+      if (!f) return
+      // The front faces the mouse; in 15° steps unless Alt is held.
+      let rotation = (Math.atan2(-(p.x - f.x), p.y - f.y) * 180) / Math.PI
+      if (!e.altKey) rotation = Math.round(rotation / 15) * 15
+      mutate((pl) => moveFurniture(pl, f.id, { x: f.x, y: f.y, rotation: ((rotation % 360) + 360) % 360 }))
     } else {
       const o = plan.openings.find((x) => x.id === d.id)
       const wall: Wall | undefined = o && plan.walls.find((w) => w.id === o.wallId)

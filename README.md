@@ -43,11 +43,25 @@ Then open http://localhost:5173.
    (name, variant and W×D×H). Drag one onto the plan or into the 3D view, or click it to add it in
    the middle. **Something else** adds a plain box with typed sizes, for anything not modelled yet;
    swap it for a real model later with the Model list. Click a piece to edit its options (sizes,
-   BILLY's shelf heights…), which update the model straight away. Drag a piece to move it; R turns
-   it 90° (Shift+R the other way). The thick edge is its front.
-9. **Undo/Redo:** Ctrl+Z and Ctrl+Y (or Ctrl+Shift+Z).
+   BILLY's shelf heights…), which update the model straight away.
+9. **Positioning furniture** (in the plan and in 3D):
+   - Drag a piece to move it. It snaps against walls and other pieces, back to the wall and square
+     to it (hold Alt not to snap). In 3D, click a piece and drag it along the floor the same way.
+   - Turn it with the round handle in front of it (15° steps, Alt for any angle), or R / Shift+R
+     for 90°. The thick edge is its front.
+   - Red: it overlaps another piece or goes through a wall (chairs pushed in under a table or desk
+     are fine). The side panel says what it hits.
+   - The faint green areas are the space a piece needs (in front of a wardrobe, at a bed's sides):
+     orange when something's in the way. One free side of a bed is enough.
+   - While a piece is selected, its distance to the nearest wall is shown on each side.
+   - Drop a piece on something with a top or shelves (a sideboard, BILLY) and it stands on top;
+     choose another shelf with **Stands on** in the side panel. It moves and turns with what it
+     stands on, and comes down to the floor when that's deleted.
+   - Ctrl+D duplicates the selected piece, L locks it in place (and unlocks it), Delete removes it.
+     These keys work in the plan and in 3D. Everything can be undone.
+10. **Undo/Redo:** Ctrl+Z and Ctrl+Y (or Ctrl+Shift+Z).
 
-10. **3D:** switch between **Plan** and **3D** at the top left. In 3D:
+11. **3D:** switch between **Plan** and **3D** at the top left. In 3D:
    - **Orbit:** drag to turn around the model, right-drag to move, wheel to zoom. Walls between you and the
      middle of the view fade out so you can see inside.
    - **Top:** straight down, without perspective.

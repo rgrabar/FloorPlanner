@@ -1,4 +1,5 @@
-import { displayName, footprint } from '../furniture/placement'
+import { blockedClearances, clearanceZones, conflicts, wallDistances } from '../furniture/fit'
+import { axes, displayName, footprint } from '../furniture/placement'
 import { dist, formatLength } from '../model/geometry'
 import type { LayerRole, Opening, PlacedFurniture, Plan, Vec2, Wall } from '../model/types'
 import { joinedEnds, pointOnWall, wallLength, wallOutline, type Selection } from '../model/walls'
@@ -44,6 +45,13 @@ const COLORS = {
   furnitureLine: '#57534e',
   furnitureSuggested: 'rgba(124, 58, 237, 0.10)',
   furnitureSuggestedLine: '#7c3aed',
+  clash: '#dc2626',
+  clashFill: 'rgba(254, 202, 202, 0.85)',
+  clearance: 'rgba(22, 163, 74, 0.07)',
+  clearanceLine: 'rgba(22, 163, 74, 0.45)',
+  clearanceBlocked: 'rgba(234, 88, 12, 0.16)',
+  clearanceBlockedLine: '#ea580c',
+  distance: '#0f766e',
 }
 
 type Ctx = CanvasRenderingContext2D
@@ -90,8 +98,19 @@ export function drawScene(ctx: Ctx, size: { w: number; h: number }, v: View, pla
 
   const sel = o.selection
   const selectedPiece = sel?.kind === 'furniture' ? sel.id : null
-  for (const f of plan.suggestedFurniture) drawFurniture(ctx, S, v.zoom, f, true, f.id === selectedPiece)
-  for (const f of plan.furniture) drawFurniture(ctx, S, v.zoom, f, false, f.id === selectedPiece)
+  const clash = conflicts(plan)
+  const blocked = blockedClearances(plan)
+  // Clearance zones under everything: faint green, orange when something's in the way.
+  for (const f of plan.furniture) {
+    for (const zone of clearanceZones(f)) {
+      fillPolygon(ctx, zone.map(S), blocked.has(f.id) ? COLORS.clearanceBlocked : COLORS.clearance, blocked.has(f.id) ? COLORS.clearanceBlockedLine : COLORS.clearanceLine, true)
+    }
+  }
+  for (const f of plan.suggestedFurniture) drawFurniture(ctx, S, v.zoom, f, true, f.id === selectedPiece, false)
+  // Lowest first, so things standing on a piece are drawn over it.
+  for (const f of [...plan.furniture].sort((a, b) => (a.z ?? 0) - (b.z ?? 0))) {
+    drawFurniture(ctx, S, v.zoom, f, false, f.id === selectedPiece, clash.has(f.id))
+  }
   drawWalls(ctx, S, plan.suggestedWalls, plan.suggestedOpenings, (w) =>
     sel?.kind === 'suggestion' && sel.id === w.id ? COLORS.suggestionSelected : COLORS.suggestion, true)
   drawWalls(ctx, S, plan.walls, plan.openings, (w) =>
@@ -112,6 +131,40 @@ export function drawScene(ctx: Ctx, size: { w: number; h: number }, v: View, pla
     }
   }
 
+  // The selected piece: how far it is from the walls, and a handle to turn it.
+  const piece = selectedPiece ? plan.furniture.find((f) => f.id === selectedPiece) ?? plan.suggestedFurniture.find((f) => f.id === selectedPiece) : null
+  if (piece) {
+    for (const d of wallDistances(piece, plan)) {
+      if (d.cm < 1 || d.cm > 600) continue
+      const a = S(d.from)
+      const b = S(d.to)
+      ctx.strokeStyle = COLORS.distance
+      ctx.lineWidth = 1
+      ctx.setLineDash([3, 3])
+      ctx.beginPath()
+      ctx.moveTo(a.x, a.y)
+      ctx.lineTo(b.x, b.y)
+      ctx.stroke()
+      ctx.setLineDash([])
+      if (dist(a, b) > 26) distanceLabel(ctx, a, b, d.cm)
+    }
+    if (!piece.locked) {
+      const fc = S(frontCentre(piece))
+      const h = S(rotationHandle(piece, v.zoom))
+      ctx.strokeStyle = COLORS.wallSelected
+      ctx.lineWidth = 1.5
+      ctx.beginPath()
+      ctx.moveTo(fc.x, fc.y)
+      ctx.lineTo(h.x, h.y)
+      ctx.stroke()
+      ctx.fillStyle = 'white'
+      ctx.beginPath()
+      ctx.arc(h.x, h.y, 6, 0, Math.PI * 2)
+      ctx.fill()
+      ctx.stroke()
+    }
+  }
+
   if (o.newWall) {
     const w: Wall = { id: '', ...o.newWall }
     fillPolygon(ctx, wallOutline(w, { a: false, b: false }).map(S), COLORS.preview)
@@ -125,11 +178,24 @@ export function drawScene(ctx: Ctx, size: { w: number; h: number }, v: View, pla
   drawScaleBar(ctx, size, v.zoom)
 }
 
+/** Where the turning handle of a piece is: in front of it, a fixed distance on screen. */
+export function rotationHandle(f: PlacedFurniture, zoom: number): Vec2 {
+  const fc = frontCentre(f)
+  const { v } = axes(f)
+  return { x: fc.x + (v.x * 28) / zoom, y: fc.y + (v.y * 28) / zoom }
+}
+
+function frontCentre(f: PlacedFurniture): Vec2 {
+  const [, , c, d] = footprint(f)
+  return { x: (c.x + d.x) / 2, y: (c.y + d.y) / 2 }
+}
+
 /** A footprint with its front edge drawn thicker, and the name when there's room for it. */
-function drawFurniture(ctx: Ctx, S: (p: Vec2) => Vec2, zoom: number, f: PlacedFurniture, suggested: boolean, selected: boolean) {
+function drawFurniture(ctx: Ctx, S: (p: Vec2) => Vec2, zoom: number, f: PlacedFurniture, suggested: boolean, selected: boolean, clash: boolean) {
   const pts = footprint(f).map(S)
-  const line = selected ? COLORS.wallSelected : suggested ? COLORS.furnitureSuggestedLine : COLORS.furnitureLine
-  fillPolygon(ctx, pts, suggested ? COLORS.furnitureSuggested : COLORS.furniture, line, suggested)
+  const line = selected ? COLORS.wallSelected : clash ? COLORS.clash : suggested ? COLORS.furnitureSuggestedLine : COLORS.furnitureLine
+  const fill = clash ? COLORS.clashFill : suggested ? COLORS.furnitureSuggested : COLORS.furniture
+  fillPolygon(ctx, pts, fill, line, suggested)
   ctx.strokeStyle = line
   ctx.lineWidth = selected ? 3 : 2
   ctx.beginPath()
@@ -142,6 +208,17 @@ function drawFurniture(ctx: Ctx, S: (p: Vec2) => Vec2, zoom: number, f: PlacedFu
     pts.forEach((p, i) => (i ? ctx.lineTo(p.x, p.y) : ctx.moveTo(p.x, p.y)))
     ctx.closePath()
     ctx.stroke()
+  }
+  if (f.locked) {
+    // A small padlock in the back-left corner.
+    const at = { x: pts[0].x + (pts[2].x - pts[0].x) * 0.12, y: pts[0].y + (pts[2].y - pts[0].y) * 0.12 }
+    ctx.fillStyle = '#57534e'
+    ctx.strokeStyle = '#57534e'
+    ctx.lineWidth = 1.5
+    ctx.beginPath()
+    ctx.arc(at.x, at.y - 3, 3, Math.PI, 0)
+    ctx.stroke()
+    ctx.fillRect(at.x - 4.5, at.y - 3, 9, 7)
   }
   const name = displayName(f.model)
   ctx.font = '11px system-ui, sans-serif'
@@ -289,6 +366,18 @@ function lengthLabel(ctx: Ctx, a: Vec2, b: Vec2, cm: number) {
   ctx.fillStyle = 'white'
   ctx.textAlign = 'center'
   ctx.fillText(text, m.x, m.y - 9)
+}
+
+function distanceLabel(ctx: Ctx, a: Vec2, b: Vec2, cm: number) {
+  const m = { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 }
+  const text = `${Math.round(cm)} cm`
+  ctx.font = '11px system-ui, sans-serif'
+  const w = ctx.measureText(text).width + 6
+  ctx.fillStyle = 'rgba(255, 255, 255, 0.9)'
+  ctx.fillRect(m.x - w / 2, m.y - 8, w, 15)
+  ctx.fillStyle = COLORS.distance
+  ctx.textAlign = 'center'
+  ctx.fillText(text, m.x, m.y + 4)
 }
 
 function drawSnap(ctx: Ctx, p: Vec2, kind: string) {

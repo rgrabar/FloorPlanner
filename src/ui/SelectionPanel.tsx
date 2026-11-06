@@ -1,4 +1,6 @@
 import { acceptFurniture, displayName, modelOf, updateFurniture } from '../furniture/placement'
+import { deleteSelected, duplicateSelected, toggleLockSelected, turnSelected } from '../furniture/actions'
+import { blockedClearances, conflicts, moveFurniture, restack, surfacesUnder } from '../furniture/fit'
 import { MODELS } from '../furniture/model'
 import { formatLength } from '../model/geometry'
 import type { OpeningKind, PlacedFurniture } from '../model/types'
@@ -27,7 +29,7 @@ export function SelectionPanel() {
     select(null)
   }
 
-  if (sel.kind === 'furniture') return <FurniturePanel id={sel.id} onDelete={remove} />
+  if (sel.kind === 'furniture') return <FurniturePanel id={sel.id} />
 
   if (sel.kind === 'suggestion') {
     const w = plan.suggestedWalls.find((x) => x.id === sel.id)
@@ -104,7 +106,7 @@ export function SelectionPanel() {
 
 const MODEL_NAMES = Object.keys(MODELS).sort((a, b) => displayName(a).localeCompare(displayName(b)))
 
-function FurniturePanel({ id, onDelete }: { id: string; onDelete(): void }) {
+function FurniturePanel({ id }: { id: string }) {
   const plan = useStore((s) => s.plan)
   const { edit } = useStore.getState()
   const suggested = plan.suggestedFurniture.find((f) => f.id === id)
@@ -112,21 +114,34 @@ function FurniturePanel({ id, onDelete }: { id: string; onDelete(): void }) {
   if (!f) return null
   const spec = MODELS[f.model]
   const model = modelOf(f)
-  const set = (patch: Partial<PlacedFurniture>) => edit((p) => updateFurniture(p, f.id, patch))
+  // Option changes can change what stands on it (a shelf moved): heights follow.
+  const set = (patch: Partial<PlacedFurniture>) => edit((p) => restack(updateFurniture(p, f.id, patch)))
   const setValue = (key: string, v: number | string | number[]) => set({ values: { ...f.values, [key]: v } })
-  const turn = (by: number) => set({ rotation: (((f.rotation + by) % 360) + 360) % 360 })
   // Another model keeps the options it shares with this one (a sofa's width stays when swapped).
   const swap = (name: string) => {
     const params = MODELS[name]?.params ?? {}
     const values = Object.fromEntries(Object.entries(f.values ?? {}).filter(([k]) => k in params))
     set({ model: name, values })
   }
+  // What it can stand on: the floor, or any surface of what's under its middle.
+  const under = suggested ? [] : surfacesUnder(f, f, plan)
+  const standingKey = f.on ? `${f.on}:${f.surface}` : ''
+  const standOn = (key: string) => {
+    const pick = under.find((s) => `${s.host.id}:${s.index}` === key)
+    set(pick ? { on: pick.host.id, surface: pick.index, z: pick.z } : { on: undefined, surface: undefined, z: undefined })
+  }
+  const clash = suggested ? undefined : conflicts(plan).get(f.id)
+  const blocked = !suggested && blockedClearances(plan).has(f.id)
+  const nameOf = (other: string) => {
+    const o = plan.furniture.find((x) => x.id === other)
+    return o ? displayName(o.model) : 'another piece'
+  }
   return (
     <section>
       <h3>{suggested ? 'Suggested furniture' : 'Furniture'}</h3>
       <label className="field">
         Model
-        <select value={f.model} onChange={(e) => swap(e.target.value)}>
+        <select value={f.model} onChange={(e) => swap(e.target.value)} disabled={f.locked}>
           {MODEL_NAMES.map((n) => (
             <option key={n} value={n}>
               {displayName(n)}
@@ -136,6 +151,12 @@ function FurniturePanel({ id, onDelete }: { id: string; onDelete(): void }) {
       </label>
       {f.label && <p className="muted">From the plan: "{f.label}"</p>}
       {model && <p className="muted">{model.size.map(Math.round).join(' × ')} cm</p>}
+      {clash && (
+        <p className="error-text">
+          {[clash.wall && 'Goes through a wall.', clash.with.length && `Overlaps ${clash.with.map(nameOf).join(', ')}.`].filter(Boolean).join(' ')}
+        </p>
+      )}
+      {blocked && <p className="warn-text">Something is in the space it needs in front (or around it).</p>}
       <div className="fields">
         {Object.entries(spec?.params ?? {}).map(([key, p]) => {
           const current = f.values?.[key] ?? p.default
@@ -156,17 +177,44 @@ function FurniturePanel({ id, onDelete }: { id: string; onDelete(): void }) {
           }
           return <ListField key={key} label={p.label ?? key} value={current as number[]} onChange={(v) => setValue(key, v)} />
         })}
-        <NumberField label="Turned" unit="°" min={-360} value={f.rotation} onChange={(v) => set({ rotation: ((v % 360) + 360) % 360 })} />
+        {!f.locked && (
+          <NumberField
+            label="Turned"
+            unit="°"
+            min={-360}
+            value={f.rotation}
+            onChange={(v) => edit((p) => moveFurniture(p, f.id, { x: f.x, y: f.y, rotation: ((v % 360) + 360) % 360 }))}
+          />
+        )}
       </div>
-      <p className="muted">Drag it to move it. R turns it 90° (Shift+R the other way). The thick edge is its front.</p>
+      {(under.length > 0 || f.on) && (
+        <label className="field">
+          Stands on
+          <select value={standingKey} onChange={(e) => standOn(e.target.value)}>
+            <option value="">the floor</option>
+            {under.map((s) => (
+              <option key={`${s.host.id}:${s.index}`} value={`${s.host.id}:${s.index}`}>
+                {displayName(s.host.model)}: {s.label} ({Math.round(s.z)} cm)
+              </option>
+            ))}
+          </select>
+        </label>
+      )}
+      <p className="muted">
+        {f.locked
+          ? 'Locked: it stays where it is (L to unlock).'
+          : 'Drag it to move it; it snaps to walls and furniture (hold Alt not to). Drag the round handle to turn it in 15° steps, R turns it 90°. The thick edge is its front.'}
+      </p>
       <div className="buttons">
         {suggested && (
           <button className="primary" onClick={() => edit((p) => acceptFurniture(p, [f.id]))}>
             Accept (Enter)
           </button>
         )}
-        <button onClick={() => turn(90)}>Turn 90°</button>
-        <button onClick={onDelete}>Delete</button>
+        {!f.locked && <button onClick={() => turnSelected(90)}>Turn 90°</button>}
+        {!suggested && <button onClick={duplicateSelected} title="Ctrl+D">Duplicate</button>}
+        {!suggested && <button onClick={toggleLockSelected} title="L">{f.locked ? 'Unlock' : 'Lock'}</button>}
+        <button onClick={deleteSelected}>Delete</button>
       </div>
     </section>
   )

@@ -598,3 +598,8 @@ button.active {
 .catalogue li:active {
   cursor: grabbing;
 }
+
+.warn-text {
+  color: #c2410c;
+  font-size: 13px;
+}

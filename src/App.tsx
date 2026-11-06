@@ -1,5 +1,6 @@
 import { lazy, Suspense, useEffect, useState } from 'react'
 import { PlanCanvas } from './editor/PlanCanvas'
+import { furnitureKey } from './furniture/actions'
 import { startAutosave, useStore, type Tool } from './store/store'
 import { SidePanel } from './ui/SidePanel'
 import { Toolbar } from './ui/Toolbar'
@@ -31,6 +32,7 @@ export function App() {
     }
     const onKey = (e: KeyboardEvent) => {
       if (e.target instanceof HTMLInputElement || e.target instanceof HTMLSelectElement) return
+      if (furnitureKey(e)) return
       const k = e.key.toLowerCase()
       if (e.ctrlKey || e.metaKey) {
         if (k === 'z' && !e.shiftKey) undo()

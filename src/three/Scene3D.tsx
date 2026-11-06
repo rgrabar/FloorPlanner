@@ -1,9 +1,10 @@
 import { MapControls, OrbitControls, OrthographicCamera, PerspectiveCamera, PointerLockControls } from '@react-three/drei'
-import { Canvas, useFrame, useThree } from '@react-three/fiber'
+import { Canvas, useFrame, useThree, type ThreeEvent } from '@react-three/fiber'
 import { useEffect, useMemo, useRef } from 'react'
 import * as THREE from 'three'
 import { create } from 'zustand'
 import { FurnitureMesh } from '../furniture/FurnitureMesh'
+import { blockedClearances, clearanceZones, conflicts, dragFurniture } from '../furniture/fit'
 import { modelOf } from '../furniture/placement'
 import type { Background, PlacedFurniture, Plan, Vec2 } from '../model/types'
 import { useStore } from '../store/store'
@@ -69,9 +70,7 @@ export default function Scene3D() {
         <Lights size={c.size} />
         <group position={[-c.x, 0, -c.z]}>
           <Walls plan={plan} center={c} fade={view.camera === 'orbit'} />
-          {plan.furniture.map((f) => (
-            <Piece key={f.id} item={f} />
-          ))}
+          <FurnitureLayer plan={plan} center={c} interactive={view.camera !== 'walk'} />
           {view.planOnFloor && plan.background && <PlanOnFloor bg={plan.background} />}
         </group>
         {/* Floor under the building, and the ground around it. */}
@@ -186,17 +185,119 @@ function Walls({ plan, center, fade }: { plan: Plan; center: Center; fade: boole
   )
 }
 
-/** A piece of furniture: centred on its plan position and turned (plan angles run clockwise seen from above). */
-function Piece({ item }: { item: PlacedFurniture }) {
-  const model = modelOf(item)
-  if (!model) return null
-  const [w, d] = model.size
+/**
+ * The placed furniture. Click a piece to select it and drag it along the floor: it snaps to walls
+ * and other pieces like in the plan (Alt for no snapping). Pieces that overlap or go through a wall
+ * show red; the selected one gets a blue outline. Clearance zones are faint on the floor.
+ */
+function FurnitureLayer({ plan, center, interactive }: { plan: Plan; center: Center; interactive: boolean }) {
+  const selection = useStore((s) => s.selection)
+  const { camera, gl, controls } = useThree()
+  const clash = useMemo(() => conflicts(plan), [plan])
+  const blocked = useMemo(() => blockedClearances(plan), [plan])
+  const selectedId = selection?.kind === 'furniture' ? selection.id : null
+
+  // The floor point under the mouse, in plan cm.
+  const floorAt = (clientX: number, clientY: number): Vec2 | null => {
+    const r = gl.domElement.getBoundingClientRect()
+    const ray = new THREE.Raycaster()
+    ray.setFromCamera(new THREE.Vector2(((clientX - r.left) / r.width) * 2 - 1, -((clientY - r.top) / r.height) * 2 + 1), camera)
+    const hit = new THREE.Vector3()
+    if (!ray.ray.intersectPlane(new THREE.Plane(new THREE.Vector3(0, 1, 0), 0), hit)) return null
+    return { x: (hit.x + center.x) / M, y: (hit.z + center.z) / M }
+  }
+
+  const startDrag = (f: PlacedFurniture, e: ThreeEvent<PointerEvent>) => {
+    if (!interactive || e.button !== 0) return
+    e.stopPropagation()
+    const { select, checkpoint, mutate } = useStore.getState()
+    select({ kind: 'furniture', id: f.id })
+    if (f.locked) return
+    const start = floorAt(e.nativeEvent.clientX, e.nativeEvent.clientY)
+    if (!start) return
+    const grab = { x: start.x - f.x, y: start.y - f.y }
+    const orbit = controls as unknown as { enabled: boolean } | null
+    if (orbit) orbit.enabled = false
+    let started = false
+    const move = (ev: PointerEvent) => {
+      const p = floorAt(ev.clientX, ev.clientY)
+      if (!p) return
+      if (!started) {
+        checkpoint()
+        started = true
+      }
+      const current = useStore.getState().plan.furniture.find((x) => x.id === f.id)
+      if (current) mutate((pl) => dragFurniture(pl, current, { x: p.x - grab.x, y: p.y - grab.y }, ev.altKey ? 0 : 12))
+    }
+    const up = () => {
+      window.removeEventListener('pointermove', move)
+      window.removeEventListener('pointerup', up)
+      if (orbit) orbit.enabled = true
+    }
+    window.addEventListener('pointermove', move)
+    window.addEventListener('pointerup', up)
+  }
+
   return (
-    <group position={[item.x * M, 0, item.y * M]} rotation={[0, (-item.rotation * Math.PI) / 180, 0]}>
+    <>
+      {plan.furniture.map((f) => (
+        <Piece key={f.id} item={f} selected={f.id === selectedId} clash={clash.has(f.id)} onPointerDown={(e) => startDrag(f, e)} />
+      ))}
+      {plan.furniture.flatMap((f) =>
+        clearanceZones(f).map((zone, i) => <FloorPatch key={`${f.id}-${i}`} poly={zone} color={blocked.has(f.id) ? '#ea580c' : '#16a34a'} />),
+      )}
+    </>
+  )
+}
+
+/** A piece of furniture: centred on its plan position and turned (plan angles run clockwise seen from above). */
+function Piece({ item, selected, clash, onPointerDown }: { item: PlacedFurniture; selected: boolean; clash: boolean; onPointerDown(e: ThreeEvent<PointerEvent>): void }) {
+  const model = modelOf(item)
+  const outline = useMemo(() => {
+    if (!model) return null
+    const [w, d, h] = model.size
+    return new THREE.EdgesGeometry(new THREE.BoxGeometry(w * M + 0.02, h * M + 0.02, d * M + 0.02))
+  }, [model])
+  if (!model) return null
+  const [w, d, h] = model.size
+  return (
+    <group
+      position={[item.x * M, (item.z ?? 0) * M, item.y * M]}
+      rotation={[0, (-item.rotation * Math.PI) / 180, 0]}
+      onPointerDown={onPointerDown}
+    >
       <group position={[(-w / 2) * M, 0, (-d / 2) * M]}>
         <FurnitureMesh model={model} />
       </group>
+      {clash && (
+        <mesh position={[0, (h / 2) * M, 0]}>
+          <boxGeometry args={[w * M + 0.01, h * M + 0.01, d * M + 0.01]} />
+          <meshBasicMaterial color="#ef4444" transparent opacity={0.3} depthWrite={false} />
+        </mesh>
+      )}
+      {selected && outline && (
+        <lineSegments geometry={outline} position={[0, (h / 2) * M, 0]}>
+          <lineBasicMaterial color="#2563eb" />
+        </lineSegments>
+      )}
     </group>
+  )
+}
+
+/** A faint area on the floor (a clearance zone). */
+function FloorPatch({ poly, color }: { poly: Vec2[]; color: string }) {
+  const geometry = useMemo(() => {
+    const shape = new THREE.Shape(poly.map((p) => new THREE.Vector2(p.x * M, p.y * M)))
+    const g = new THREE.ShapeGeometry(shape)
+    // Shapes are drawn in x/y; the floor is x/z.
+    g.rotateX(Math.PI / 2)
+    return g
+  }, [poly])
+  useEffect(() => () => geometry.dispose(), [geometry])
+  return (
+    <mesh geometry={geometry} position={[0, 0.003, 0]}>
+      <meshBasicMaterial color={color} transparent opacity={0.18} depthWrite={false} side={THREE.DoubleSide} />
+    </mesh>
   )
 }
 
