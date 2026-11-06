@@ -603,3 +603,46 @@ button.active {
   color: #c2410c;
   font-size: 13px;
 }
+
+/* Floors */
+.floor-picker {
+  max-width: 150px;
+}
+.floors {
+  list-style: none;
+  margin: 0 0 8px;
+  padding: 0;
+}
+.floors li {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 4px;
+}
+.floors li input {
+  flex: 1;
+  min-width: 0;
+}
+.floors li.active input {
+  border-color: #2563eb;
+  font-weight: 600;
+}
+
+/* Shopping list */
+.dialog.shopping {
+  width: min(640px, 92vw);
+  max-height: 80vh;
+  overflow-y: auto;
+}
+.shopping-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+  margin: 8px 0;
+}
+.shopping-table th,
+.shopping-table td {
+  text-align: left;
+  padding: 5px 6px;
+  border-bottom: 1px solid #e2e8f0;
+  vertical-align: top;
+}

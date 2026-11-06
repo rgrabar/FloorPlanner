@@ -31,9 +31,22 @@ export interface View3D {
 
 const MAX_UNDO = 100
 
+/** One floor of the building: its own plan (walls, furniture, floorplan picture) and undo history. */
+export interface Floor {
+  name: string
+  plan: Plan
+  file: File | null
+  past: Plan[]
+  future: Plan[]
+}
+
 interface State {
+  // The floor being edited. Its plan, file and history live in `plan`, `file`, `past` and
+  // `future`; `floors[floorIndex]` is only brought up to date when switching floors or saving.
   plan: Plan
   file: File | null // the imported file, kept to switch pages/levels
+  floors: Floor[]
+  floorIndex: number
   tool: Tool
   viewMode: '2d' | '3d'
   view3d: View3D
@@ -68,6 +81,19 @@ interface State {
   newPlan(): void
   fit(): void
   showMessage(message: Message | null): void
+  switchFloor(index: number): void
+  addFloor(copyCurrent: boolean): void
+  renameFloor(index: number, name: string): void
+  deleteFloor(index: number): void
+  /** Every floor, with the current one up to date. */
+  allFloors(): Floor[]
+  /** Replaces the whole building (opening a project). */
+  loadFloors(floors: Floor[], index: number): void
+}
+
+/** The default name for a new floor above the others. */
+function floorName(n: number) {
+  return n === 0 ? 'Ground floor' : `Floor ${n}`
 }
 
 const errorText = (e: unknown) => (e instanceof Error ? e.message : String(e))
@@ -87,8 +113,20 @@ export const useStore = create<State>()((set, get) => {
   }
 
   function confirmReplace() {
-    const { plan } = get()
-    return plan.walls.length === 0 || window.confirm('Open a new floorplan? The walls you traced will be replaced.')
+    const { plan, floors } = get()
+    const where = floors.length > 1 ? ' on this floor' : ''
+    return plan.walls.length === 0 || window.confirm(`Open a new floorplan? The walls you traced${where} will be replaced.`)
+  }
+
+  function current(): Floor {
+    const s = get()
+    return { ...s.floors[s.floorIndex], plan: s.plan, file: s.file, past: s.past, future: s.future }
+  }
+
+  /** Makes floor `index` (of `floors`) the one being edited. */
+  function show(floors: Floor[], index: number) {
+    const f = floors[index]
+    set((s) => ({ floors, floorIndex: index, plan: f.plan, file: f.file, past: f.past, future: f.future, selection: null, tool: 'select', fitToken: s.fitToken + 1 }))
   }
 
   /** Replaces the whole plan (new file, new page): starts a fresh undo history. */
@@ -99,6 +137,8 @@ export const useStore = create<State>()((set, get) => {
   return {
     plan: emptyPlan(),
     file: null,
+    floors: [{ name: floorName(0), plan: emptyPlan(), file: null, past: [], future: [] }],
+    floorIndex: 0,
     tool: 'select',
     viewMode: '2d',
     view3d: { camera: 'orbit', ceiling: false, planOnFloor: false },
@@ -118,7 +158,10 @@ export const useStore = create<State>()((set, get) => {
     async openFile(file) {
       if (!confirmReplace()) return
       if (file.name.toLowerCase().endsWith('.json')) {
-        await run(`Opening ${file.name}…`, async () => replacePlan(await readProject(file), { file: null }))
+        await run(`Opening ${file.name}…`, async () => {
+          const project = await readProject(file)
+          get().loadFloors(project.floors.map((f) => ({ ...f, file: null, past: [], future: [] })), project.index)
+        })
         return
       }
       await run(`Reading ${file.name}…`, async () => {
@@ -231,8 +274,11 @@ export const useStore = create<State>()((set, get) => {
     },
 
     newPlan() {
-      if (!confirmReplace()) return
-      replacePlan(emptyPlan(), { file: null, message: null })
+      const { floors, plan } = get()
+      const anything = floors.length > 1 || plan.walls.length > 0
+      if (anything && !window.confirm('Start a new project? All floors and their walls and furniture will be cleared.')) return
+      set({ message: null })
+      show([{ name: floorName(0), plan: emptyPlan(), file: null, past: [], future: [] }], 0)
     },
 
     fit() {
@@ -241,6 +287,41 @@ export const useStore = create<State>()((set, get) => {
 
     showMessage(message) {
       set({ message })
+    },
+
+    allFloors() {
+      const s = get()
+      return s.floors.map((f, i) => (i === s.floorIndex ? current() : f))
+    },
+
+    switchFloor(index) {
+      const s = get()
+      if (index === s.floorIndex || !s.floors[index]) return
+      show(get().allFloors(), index)
+    },
+
+    addFloor(copyCurrent) {
+      const floors = get().allFloors()
+      const here = current()
+      // A copy keeps the walls, doors, windows and the floorplan picture, but not the furniture.
+      const plan = copyCurrent ? { ...here.plan, furniture: [], suggestedFurniture: [] } : emptyPlan()
+      const floor: Floor = { name: floorName(floors.length), plan, file: copyCurrent ? here.file : null, past: [], future: [] }
+      show([...floors, floor], floors.length)
+    },
+
+    renameFloor(index, name) {
+      set((s) => ({ floors: s.floors.map((f, i) => (i === index ? { ...f, name } : f)) }))
+    },
+
+    deleteFloor(index) {
+      const floors = get().allFloors()
+      if (floors.length < 2) return
+      const rest = floors.filter((_, i) => i !== index)
+      show(rest, Math.min(get().floorIndex > index ? get().floorIndex - 1 : get().floorIndex, rest.length - 1))
+    },
+
+    loadFloors(floors, index) {
+      show(floors.length ? floors : [{ name: floorName(0), plan: emptyPlan(), file: null, past: [], future: [] }], Math.max(0, Math.min(index, floors.length - 1)))
     },
   }
 })
@@ -257,16 +338,17 @@ export async function startAutosave() {
   try {
     const saved = await loadAutosave()
     if (saved && !useStore.getState().plan.source) {
-      useStore.setState((s) => ({ plan: saved.plan, file: saved.file, fitToken: s.fitToken + 1 }))
+      useStore.getState().loadFloors(saved.floors.map((f) => ({ ...f, past: [], future: [] })), saved.index)
     }
   } catch (e) {
     console.warn('Could not restore autosave', e)
   }
   useStore.subscribe((s, prev) => {
-    if (s.plan === prev.plan && s.file === prev.file) return
+    if (s.plan === prev.plan && s.file === prev.file && s.floors === prev.floors && s.floorIndex === prev.floorIndex) return
     clearTimeout(saveTimer)
     saveTimer = window.setTimeout(() => {
-      saveAutosave(s.plan, s.file).catch((e) => console.warn('Autosave failed', e))
+      const state = useStore.getState()
+      saveAutosave(state.allFloors(), state.floorIndex).catch((e) => console.warn('Autosave failed', e))
     }, 800)
   })
 }

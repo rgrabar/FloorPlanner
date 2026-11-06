@@ -33,6 +33,7 @@ export function SidePanel() {
   const { choosePart, setLayerRole, setTool, setHighlightLayer, findWalls, edit, select } = useStore.getState()
   const src = plan.source
   const bounds = planBounds(plan)
+  const floors = useStore((s) => s.floors)
   const count = (kind: string, list: { kind: string }[]) => list.filter((o) => o.kind === kind).length
   const hasWallLayers = plan.layers.some((l) => l.role === 'wall')
 
@@ -50,6 +51,7 @@ export function SidePanel() {
           </ol>
           <p className="muted">Test files for every format are in the <code>samples</code> folder.</p>
         </section>
+        {floors.length > 1 && <FloorsSection />}
       </aside>
     )
   }
@@ -172,6 +174,8 @@ export function SidePanel() {
           </div>
         </section>
       )}
+
+      <FloorsSection />
     </aside>
   )
 }
@@ -206,5 +210,44 @@ function FurnitureSection() {
       </section>
       <Catalogue />
     </>
+  )
+}
+
+/** The building's floors: rename, copy (walls without furniture), delete. Switch in the toolbar. */
+function FloorsSection() {
+  const floors = useStore((s) => s.floors)
+  const floorIndex = useStore((s) => s.floorIndex)
+  const { switchFloor, addFloor, renameFloor, deleteFloor } = useStore.getState()
+  return (
+    <section>
+      <h3>Floors</h3>
+      <ul className="floors">
+        {floors.map((f, i) => (
+          <li key={i} className={i === floorIndex ? 'active' : ''}>
+            <input
+              value={f.name}
+              onChange={(e) => renameFloor(i, e.target.value)}
+              onFocus={() => switchFloor(i)}
+              aria-label={`Name of floor ${i + 1}`}
+            />
+            {floors.length > 1 && (
+              <button
+                title="Delete this floor"
+                onClick={() => window.confirm(`Delete "${f.name}" with its walls and furniture?`) && deleteFloor(i)}
+              >
+                Delete
+              </button>
+            )}
+          </li>
+        ))}
+      </ul>
+      <div className="buttons">
+        <button onClick={() => addFloor(false)}>Add a floor</button>
+        <button onClick={() => addFloor(true)} title="A new floor with this floor's walls, doors and windows, without furniture">
+          Copy this floor
+        </button>
+      </div>
+      <p className="muted">Each floor has its own floorplan, walls and furniture: open a file while a floor is chosen to fill it.</p>
+    </section>
   )
 }

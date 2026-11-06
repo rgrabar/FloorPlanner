@@ -64,7 +64,7 @@ export default function Scene3D() {
         placeFromCatalogue(model, at)
       }}
     >
-      <Canvas shadows dpr={[1, 2]}>
+      <Canvas shadows dpr={[1, 2]} gl={{ preserveDrawingBuffer: true }}>
         <FloorPicker center={c} target={floorAt} />
         <color attach="background" args={['#e8ecf1']} />
         <Lights size={c.size} />

@@ -70,10 +70,20 @@ Then open http://localhost:5173.
    - **Room height** (for walls without their own height), **Ceiling** and **Plan on floor** (the floorplan
      picture as the floor) are in the bar at the top.
 
+12. **Floors:** choose the floor you're working on in the toolbar, or add one there. Each floor has
+    its own floorplan file, walls and furniture: open a file while a floor is chosen to fill it.
+    In the side panel's **Floors** section you can rename floors, delete them, or **Copy this
+    floor** (walls, doors and windows, without the furniture) as a start for the next one.
+13. **Shopping list** (toolbar): every IKEA article placed, on all floors, with its article number,
+    how many, and on which floors. A model made of several articles (a PAX frame with doors) lists
+    each one. Article numbers link to IKEA Ireland; **Download CSV** saves it for a spreadsheet.
+14. **Export PNG** (toolbar) saves the plan or the 3D view as you see it.
+
 Drag empty space (or hold Space, or use the right mouse button) to pan. The mouse wheel zooms. **Fit** (F) shows everything.
 
 Your work is saved automatically in the browser. **Save project** downloads a
-`.floorplan.json` file, which you can open again with Open.
+`.floorplan.json` file with all floors, which you can open again with Open (projects saved before
+floors existed open as one floor).
 
 ## Supported formats
 

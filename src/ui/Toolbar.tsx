@@ -1,7 +1,8 @@
-import { useRef } from 'react'
+import { useRef, useState } from 'react'
 import { ACCEPT } from '../import'
 import { downloadProject } from '../project/saveLoad'
 import { useStore, type Tool } from '../store/store'
+import { ShoppingListDialog } from './ShoppingList'
 
 const TOOLS: { tool: Tool; label: string; key: string; title: string; needsPlan?: boolean }[] = [
   { tool: 'select', label: 'Select', key: 'V', title: 'Select, move and reshape. Drag empty space to pan.' },
@@ -18,8 +19,11 @@ export function Toolbar() {
   const viewMode = useStore((s) => s.viewMode)
   const canUndo = useStore((s) => s.past.length > 0)
   const canRedo = useStore((s) => s.future.length > 0)
-  const { openFile, setTool, setViewMode, newPlan, fit, undo, redo } = useStore.getState()
+  const floors = useStore((s) => s.floors)
+  const floorIndex = useStore((s) => s.floorIndex)
+  const { openFile, setTool, setViewMode, newPlan, fit, undo, redo, switchFloor, addFloor, allFloors } = useStore.getState()
   const input = useRef<HTMLInputElement>(null)
+  const [shopping, setShopping] = useState(false)
   const hasPlan = !!plan.source || !!plan.background
 
   return (
@@ -47,10 +51,23 @@ export function Toolbar() {
           if (file) void openFile(file)
         }}
       />
-      <button onClick={() => downloadProject(plan)} disabled={!hasPlan && !plan.walls.length}>
+      <button onClick={() => downloadProject(allFloors(), floorIndex)} disabled={!hasPlan && !plan.walls.length && floors.length < 2}>
         Save project
       </button>
       <button onClick={newPlan}>New</button>
+      <select
+        className="floor-picker"
+        value={floorIndex}
+        title="Which floor you're working on"
+        onChange={(e) => (e.target.value === 'add' ? addFloor(false) : switchFloor(Number(e.target.value)))}
+      >
+        {floors.map((f, i) => (
+          <option key={i} value={i}>
+            {f.name}
+          </option>
+        ))}
+        <option value="add">+ Add a floor</option>
+      </select>
       <span className="sep" />
       <button onClick={undo} disabled={!canUndo} title="Undo (Ctrl+Z)">
         Undo
@@ -73,6 +90,28 @@ export function Toolbar() {
       <button onClick={fit} title="Zoom to fit (F)" disabled={viewMode === '3d'}>
         Fit
       </button>
+      <span className="sep" />
+      <button onClick={() => setShopping(true)} title="Every IKEA article placed, on all floors">
+        Shopping list
+      </button>
+      <button onClick={() => exportView(`${floors[floorIndex]?.name ?? 'plan'}-${viewMode === '3d' ? '3d' : 'plan'}`)} title="Save what you see as a picture">
+        Export PNG
+      </button>
+      {shopping && <ShoppingListDialog floors={allFloors()} onClose={() => setShopping(false)} />}
     </header>
   )
+}
+
+/** Saves the plan or 3D view as it is on screen. */
+function exportView(name: string) {
+  const canvas = document.querySelector<HTMLCanvasElement>('.canvas-wrap canvas, .scene-wrap canvas')
+  if (!canvas) return
+  canvas.toBlob((blob) => {
+    if (!blob) return
+    const a = document.createElement('a')
+    a.href = URL.createObjectURL(blob)
+    a.download = `${name.replace(/[^\w\- ]+/g, '').trim() || 'view'}.png`
+    a.click()
+    setTimeout(() => URL.revokeObjectURL(a.href), 1000)
+  }, 'image/png')
 }
