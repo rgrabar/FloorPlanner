@@ -5,8 +5,9 @@ import * as THREE from 'three'
 import { create } from 'zustand'
 import { FurnitureMesh } from '../furniture/FurnitureMesh'
 import { modelOf } from '../furniture/placement'
-import type { Background, PlacedFurniture, Plan } from '../model/types'
+import type { Background, PlacedFurniture, Plan, Vec2 } from '../model/types'
 import { useStore } from '../store/store'
+import { FURNITURE_DRAG, placeFromCatalogue } from '../ui/Catalogue'
 import { NumberField } from '../ui/NumberField'
 import { buildingBounds, buildWalls, bumpsIntoWall, M } from './buildings'
 
@@ -25,6 +26,8 @@ export default function Scene3D() {
   const plan = useStore((s) => s.plan)
   const view = useStore((s) => s.view3d)
   const bounds = useMemo(() => buildingBounds(plan), [plan])
+  // Turns a point on the screen into a point on the floor (set up inside the canvas).
+  const floorAt = useRef<((clientX: number, clientY: number) => Vec2 | null) | null>(null)
 
   if (!bounds) {
     return (
@@ -45,8 +48,23 @@ export default function Scene3D() {
   const floor = { w: (bounds.maxX - bounds.minX) * M, d: (bounds.maxY - bounds.minY) * M }
 
   return (
-    <div className="scene-wrap">
+    <div
+      className="scene-wrap"
+      onDragOver={(e) => {
+        if (!e.dataTransfer.types.includes(FURNITURE_DRAG)) return
+        e.preventDefault()
+        e.dataTransfer.dropEffect = 'copy'
+      }}
+      onDrop={(e) => {
+        const model = e.dataTransfer.getData(FURNITURE_DRAG)
+        const at = model && floorAt.current?.(e.clientX, e.clientY)
+        if (!model || !at) return
+        e.preventDefault()
+        placeFromCatalogue(model, at)
+      }}
+    >
       <Canvas shadows dpr={[1, 2]}>
+        <FloorPicker center={c} target={floorAt} />
         <color attach="background" args={['#e8ecf1']} />
         <Lights size={c.size} />
         <group position={[-c.x, 0, -c.z]}>
@@ -180,6 +198,27 @@ function Piece({ item }: { item: PlacedFurniture }) {
       </group>
     </group>
   )
+}
+
+/** Gives the page a way to find the floor point under the mouse, for dropping furniture. */
+function FloorPicker({ center, target }: { center: Center; target: React.MutableRefObject<((x: number, y: number) => Vec2 | null) | null> }) {
+  const { camera, gl } = useThree()
+  useEffect(() => {
+    const ray = new THREE.Raycaster()
+    const floor = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0)
+    const hit = new THREE.Vector3()
+    target.current = (clientX, clientY) => {
+      const r = gl.domElement.getBoundingClientRect()
+      ray.setFromCamera(new THREE.Vector2(((clientX - r.left) / r.width) * 2 - 1, -((clientY - r.top) / r.height) * 2 + 1), camera)
+      if (!ray.ray.intersectPlane(floor, hit)) return null
+      // The building is drawn shifted so its middle is at the origin.
+      return { x: (hit.x + center.x) / M, y: (hit.z + center.z) / M }
+    }
+    return () => {
+      target.current = null
+    }
+  }, [camera, gl, center, target])
+  return null
 }
 
 function PlanOnFloor({ bg }: { bg: Background }) {

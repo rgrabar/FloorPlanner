@@ -12,6 +12,7 @@ import {
   wallLength,
 } from '../model/walls'
 import { useStore } from '../store/store'
+import { ListField } from './ListField'
 import { NumberField } from './NumberField'
 
 /** Details of the selected wall, door/window or suggestion, with its sizes editable. */
@@ -112,7 +113,7 @@ function FurniturePanel({ id, onDelete }: { id: string; onDelete(): void }) {
   const spec = MODELS[f.model]
   const model = modelOf(f)
   const set = (patch: Partial<PlacedFurniture>) => edit((p) => updateFurniture(p, f.id, patch))
-  const setValue = (key: string, v: number | string) => set({ values: { ...f.values, [key]: v } })
+  const setValue = (key: string, v: number | string | number[]) => set({ values: { ...f.values, [key]: v } })
   const turn = (by: number) => set({ rotation: (((f.rotation + by) % 360) + 360) % 360 })
   // Another model keeps the options it shares with this one (a sofa's width stays when swapped).
   const swap = (name: string) => {
@@ -153,7 +154,7 @@ function FurniturePanel({ id, onDelete }: { id: string; onDelete(): void }) {
               </label>
             )
           }
-          return null
+          return <ListField key={key} label={p.label ?? key} value={current as number[]} onChange={(v) => setValue(key, v)} />
         })}
         <NumberField label="Turned" unit="°" min={-360} value={f.rotation} onChange={(v) => set({ rotation: ((v % 360) + 360) % 360 })} />
       </div>

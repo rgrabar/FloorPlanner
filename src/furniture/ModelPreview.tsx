@@ -1,6 +1,7 @@
 import { OrbitControls, OrthographicCamera, PerspectiveCamera } from '@react-three/drei'
 import { Canvas, useThree } from '@react-three/fiber'
 import { useMemo, useState } from 'react'
+import { ListField } from '../ui/ListField'
 import { NumberField } from '../ui/NumberField'
 import { FurnitureMesh, SurfaceMarks } from './FurnitureMesh'
 import { expandModel, MODELS, type Model, type ParamValue } from './model'
@@ -179,21 +180,6 @@ function PreviewCamera({ view, size }: { view: ViewName; size: [number, number, 
       />
       <OrbitControls makeDefault target={[0, view === 'top' ? 0 : midY, 0]} enableRotate={false} />
     </>
-  )
-}
-
-function ListField({ label, value, onChange }: { label: string; value: number[]; onChange(v: number[]): void }) {
-  const [text, setText] = useState(value.join(', '))
-  const commit = () => {
-    const list = text.split(/[,;\s]+/).filter(Boolean).map(Number)
-    if (list.every(Number.isFinite)) onChange(list)
-    else setText(value.join(', '))
-  }
-  return (
-    <label className="field" style={{ flexDirection: 'column', alignItems: 'stretch' }}>
-      {label} (comma separated)
-      <input value={text} onChange={(e) => setText(e.target.value)} onBlur={commit} onKeyDown={(e) => e.key === 'Enter' && commit()} />
-    </label>
   )
 }
 

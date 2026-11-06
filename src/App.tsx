@@ -52,6 +52,8 @@ export function App() {
     <div
       className="app"
       onDragOver={(e) => {
+        // Only files open a plan; furniture dragged from the catalogue is dropped by the views.
+        if (!e.dataTransfer.types.includes('Files')) return
         e.preventDefault()
         setDragging(true)
       }}

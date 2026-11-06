@@ -18,6 +18,7 @@ import { useStore, type DrawDefaults } from '../store/store'
 import { CalibrateDialog } from './CalibrateDialog'
 import { drawScene, type View } from './draw'
 import { hitTest, snapPoint, wallAt, type Snap } from './snap'
+import { FURNITURE_DRAG, placeFromCatalogue } from '../ui/Catalogue'
 import { ToolOptions } from './ToolOptions'
 
 type Drag =
@@ -390,6 +391,18 @@ export function PlanCanvas() {
         onPointerUp={onPointerUp}
         onPointerLeave={() => setCursor(null)}
         onDoubleClick={onDoubleClick}
+        onDragOver={(e) => {
+          if (!e.dataTransfer.types.includes(FURNITURE_DRAG)) return
+          e.preventDefault()
+          e.dataTransfer.dropEffect = 'copy'
+        }}
+        onDrop={(e) => {
+          const model = e.dataTransfer.getData(FURNITURE_DRAG)
+          if (!model) return
+          e.preventDefault()
+          setTool('select')
+          placeFromCatalogue(model, toPlan(e))
+        }}
       />
       {hint && <div className="hint">{hint}</div>}
       <ToolOptions />

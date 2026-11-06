@@ -562,3 +562,39 @@ button.active {
   border-bottom: 1px solid #e2e8f0;
   text-align: left;
 }
+
+/* Furniture catalogue */
+.catalogue-filters {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 6px;
+}
+.catalogue-filters input {
+  flex: 1;
+  min-width: 0;
+}
+.catalogue {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  max-height: 280px;
+  overflow-y: auto;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+}
+.catalogue li {
+  padding: 6px 8px;
+  border-bottom: 1px solid #eef0f3;
+  cursor: grab;
+  font-size: 13px;
+  line-height: 1.35;
+}
+.catalogue li:last-child {
+  border-bottom: none;
+}
+.catalogue li:hover {
+  background: #f1f5f9;
+}
+.catalogue li:active {
+  cursor: grabbing;
+}

@@ -38,9 +38,13 @@ Then open http://localhost:5173.
    split it. Delete removes the selection.
 8. **Furniture:** furniture drawn on the plan is found when it's opened and shown in purple (see
    *How furniture is found* below). Click a piece to check it, change its model or sizes, or delete
-   it; Enter or **Accept all furniture** accepts. Add more with the list and **Add** in the side panel.
-   Drag a piece to move it; R turns it 90° (Shift+R the other way). The thick edge is its front.
-   Accepted furniture shows in 3D.
+   it; Enter or **Accept all furniture** accepts. Accepted furniture shows in 3D.
+   **Add furniture** in the side panel lists every model, with a search box and a category filter
+   (name, variant and W×D×H). Drag one onto the plan or into the 3D view, or click it to add it in
+   the middle. **Something else** adds a plain box with typed sizes, for anything not modelled yet;
+   swap it for a real model later with the Model list. Click a piece to edit its options (sizes,
+   BILLY's shelf heights…), which update the model straight away. Drag a piece to move it; R turns
+   it 90° (Shift+R the other way). The thick edge is its front.
 9. **Undo/Redo:** Ctrl+Z and Ctrl+Y (or Ctrl+Shift+Z).
 
 10. **3D:** switch between **Plan** and **3D** at the top left. In 3D:
