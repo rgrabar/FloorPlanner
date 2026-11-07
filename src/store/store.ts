@@ -27,6 +27,7 @@ export interface View3D {
   camera: 'orbit' | 'top' | 'walk'
   ceiling: boolean
   planOnFloor: boolean // the floorplan picture as the floor's texture
+  floors: 'current' | 'below' | 'all' // which floors of the building are shown
 }
 
 const MAX_UNDO = 100
@@ -141,7 +142,7 @@ export const useStore = create<State>()((set, get) => {
     floorIndex: 0,
     tool: 'select',
     viewMode: '2d',
-    view3d: { camera: 'orbit', ceiling: false, planOnFloor: false },
+    view3d: { camera: 'orbit', ceiling: false, planOnFloor: false, floors: 'below' },
     selection: null,
     defaults: {
       wallThickness: 10,

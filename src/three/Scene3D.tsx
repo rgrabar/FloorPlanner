@@ -20,12 +20,15 @@ interface Center {
 }
 
 const EYE_HEIGHT = 1.65
+const SLAB = 25 // cm: the floor between one storey and the next
 const WALK_SPEED = 1.4 // m/s
 const RUN_SPEED = 3
 
 export default function Scene3D() {
   const plan = useStore((s) => s.plan)
   const view = useStore((s) => s.view3d)
+  const floors = useStore((s) => s.floors)
+  const floorIndex = useStore((s) => s.floorIndex)
   const bounds = useMemo(() => buildingBounds(plan), [plan])
   // Turns a point on the screen into a point on the floor (set up inside the canvas).
   const floorAt = useRef<((clientX: number, clientY: number) => Vec2 | null) | null>(null)
@@ -47,6 +50,15 @@ export default function Scene3D() {
     size: Math.max(bounds.maxX - bounds.minX, bounds.maxY - bounds.minY) * M,
   }
   const floor = { w: (bounds.maxX - bounds.minX) * M, d: (bounds.maxY - bounds.minY) * M }
+
+  // Storeys: each stands on the one below, its room height plus a floor slab higher. The floor
+  // being edited is at height 0; the others are drawn above and below it.
+  const plans = floors.map((f, i) => (i === floorIndex ? plan : f.plan))
+  const levels: number[] = []
+  plans.forEach((_, i) => levels.push(i === 0 ? 0 : levels[i - 1] + plans[i - 1].roomHeight + SLAB))
+  const others = plans
+    .map((p, i) => ({ p, i }))
+    .filter(({ i }) => i !== floorIndex && (view.floors === 'all' || (view.floors === 'below' && i < floorIndex)))
 
   return (
     <div
@@ -72,13 +84,17 @@ export default function Scene3D() {
           <Walls plan={plan} center={c} fade={view.camera === 'orbit'} />
           <FurnitureLayer plan={plan} center={c} interactive={view.camera !== 'walk'} />
           {view.planOnFloor && plan.background && <PlanOnFloor bg={plan.background} />}
+          {floorIndex > 0 && <Slab bounds={bounds} />}
         </group>
+        {others.map(({ p, i }) => (
+          <OtherFloor key={i} plan={p} center={c} height={(levels[i] - levels[floorIndex]) * M} sameFile={p.source?.fileName === plan.source?.fileName} />
+        ))}
         {/* Floor under the building, and the ground around it. */}
         <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.001, 0]} receiveShadow>
           <planeGeometry args={[floor.w, floor.d]} />
           <meshStandardMaterial color="#d8c4a0" roughness={0.8} />
         </mesh>
-        <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.01, 0]} receiveShadow>
+        <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -levels[floorIndex] * M - 0.01, 0]} receiveShadow>
           <planeGeometry args={[c.size * 6, c.size * 6]} />
           <meshStandardMaterial color="#dfe3e8" roughness={1} />
         </mesh>
@@ -322,6 +338,39 @@ function FloorPicker({ center, target }: { center: Center; target: React.Mutable
   return null
 }
 
+/**
+ * Another storey, shown but not edited. A floor opened from another file has its own origin, so
+ * it's lined up on the middle of its walls; a copied floor keeps its exact place.
+ */
+function OtherFloor({ plan, center, height, sameFile }: { plan: Plan; center: Center; height: number; sameFile: boolean }) {
+  const bounds = useMemo(() => buildingBounds(plan), [plan])
+  if (!bounds) return null
+  const shift = sameFile
+    ? { x: 0, z: 0 }
+    : { x: center.x - ((bounds.minX + bounds.maxX) / 2) * M, z: center.z - ((bounds.minY + bounds.maxY) / 2) * M }
+  return (
+    <group position={[-center.x + shift.x, height, -center.z + shift.z]}>
+      <Walls plan={plan} center={center} fade={false} />
+      {plan.furniture.map((f) => (
+        <Piece key={f.id} item={f} selected={false} clash={false} onPointerDown={() => {}} />
+      ))}
+      <Slab bounds={bounds} />
+    </group>
+  )
+}
+
+/** The floor of a storey above the ground: a slab under its walls' outline. */
+function Slab({ bounds }: { bounds: { minX: number; minY: number; maxX: number; maxY: number } }) {
+  const w = (bounds.maxX - bounds.minX) * M
+  const d = (bounds.maxY - bounds.minY) * M
+  return (
+    <mesh position={[((bounds.minX + bounds.maxX) / 2) * M, (-SLAB / 2) * M, ((bounds.minY + bounds.maxY) / 2) * M]} receiveShadow castShadow>
+      <boxGeometry args={[w, SLAB * M, d]} />
+      <meshStandardMaterial color="#d8c4a0" roughness={0.8} />
+    </mesh>
+  )
+}
+
 function PlanOnFloor({ bg }: { bg: Background }) {
   const texture = useMemo(() => {
     const t = new THREE.TextureLoader().load(bg.src)
@@ -449,6 +498,7 @@ function SceneBar() {
   const view = useStore((s) => s.view3d)
   const roomHeight = useStore((s) => s.plan.roomHeight)
   const hasPicture = useStore((s) => !!s.plan.background)
+  const manyFloors = useStore((s) => s.floors.length > 1)
   const { setView3d, edit } = useStore.getState()
   const modes: { mode: typeof view.camera; label: string }[] = [
     { mode: 'orbit', label: 'Orbit' },
@@ -469,6 +519,16 @@ function SceneBar() {
         <input type="checkbox" checked={view.ceiling} onChange={(e) => setView3d({ ceiling: e.target.checked })} />
         Ceiling
       </label>
+      {manyFloors && (
+        <label className="field">
+          Floors
+          <select value={view.floors} onChange={(e) => setView3d({ floors: e.target.value as typeof view.floors })}>
+            <option value="current">This one</option>
+            <option value="below">This and below</option>
+            <option value="all">All</option>
+          </select>
+        </label>
+      )}
       <label className="check" title={hasPicture ? '' : 'Only for floorplans with a picture'}>
         <input
           type="checkbox"

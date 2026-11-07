@@ -74,6 +74,11 @@ Then open http://localhost:5173.
     its own floorplan file, walls and furniture: open a file while a floor is chosen to fill it.
     In the side panel's **Floors** section you can rename floors, delete them, or **Copy this
     floor** (walls, doors and windows, without the furniture) as a start for the next one.
+    In 3D the floors are stacked: each stands on the one below, its room height plus a 25 cm
+    slab higher. **Floors** in the 3D bar shows this one only, this one and the ones below (to
+    look into it from above), or all of them. Only the floor you're on can be edited there. A
+    floor opened from a different file is lined up on the middle of its walls; a copied floor
+    keeps its exact place.
 13. **Shopping list** (toolbar): every IKEA article placed, on all floors, with its article number,
     how many, and on which floors. A model made of several articles (a PAX frame with doors) lists
     each one. Article numbers link to IKEA Ireland; **Download CSV** saves it for a spreadsheet.
